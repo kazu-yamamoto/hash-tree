@@ -6,6 +6,7 @@ module Data.HashTree (
   , HashTree
   , fromList
   , generateInclusionProof
+  , verifyingInclusionProof
   ) where
 
 import Data.ByteArray (ByteArrayAccess)
@@ -14,7 +15,7 @@ import Crypto.Hash
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
--- import Data.Bits
+import Data.Bits
 
 data Settings inp ha = Settings {
     hash0 :: Digest ha
@@ -86,6 +87,18 @@ generateInclusionProof i t = reverse $ path i t
       | otherwise   = mth l : path m r
     path _ _ = []
 
+verifyingInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
+                        => Settings inp ha -> inp -> Int -> [Digest ha] -> HashTree inp ha -> Bool
+verifyingInclusionProof settings inp idx dsts t = proof dsts dst0 idx0 == mth t
+  where
+    dst0 = hash1 settings inp
+    idx0 = idx `shiftR` (width (idxr t) - length dsts)
+    proof []     d0 _ = d0
+    proof (d:ds) d0 i = proof ds d' (i `unsafeShiftR` 1)
+      where
+        d' = if testBit i 0 then hash2 settings d d0
+                            else hash2 settings d0 d
+
 ----------------------------------------------------------------
 {-
 mergeCount :: Int -> Int
@@ -94,3 +107,6 @@ mergeCount = countTrailingZeros . complement
 log2Int :: Int -> Int
 log2Int x = finiteBitSize x - 1 - countLeadingZeros x
 -}
+
+width :: Int -> Int
+width x = finiteBitSize x - countLeadingZeros x
