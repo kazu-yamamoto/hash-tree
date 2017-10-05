@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Data.HashTree (
-    MerkleTreeHash
-  , Settings(..)
+    Settings(..)
   , defaultSettings
   , HashTree
   , fromList
@@ -16,16 +15,10 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
 -- import Data.Bits
 
-newtype MerkleTreeHash a = MerkleTreeHash (Digest a) deriving (Eq, Show)
-
-instance ByteArrayAccess (MerkleTreeHash a) where
-  length (MerkleTreeHash dst) = BA.length dst
-  withByteArray (MerkleTreeHash dst) = BA.withByteArray dst
-
 data Settings inp ha = Settings {
-    hash0 :: MerkleTreeHash ha
-  , hash1 :: inp -> MerkleTreeHash ha
-  , hash2 :: MerkleTreeHash ha -> MerkleTreeHash ha -> MerkleTreeHash ha
+    hash0 :: Digest ha
+  , hash1 :: inp -> Digest ha
+  , hash2 :: Digest ha -> Digest ha -> Digest ha
   }
 
 sha256 :: ByteString -> Digest SHA256
@@ -33,21 +26,21 @@ sha256 = hash
 
 defaultSettings :: Settings ByteString SHA256
 defaultSettings = Settings {
-    hash0 =  MerkleTreeHash $ sha256 ""
-  , hash1 = \x -> MerkleTreeHash $ sha256 (BS.singleton 0x00 `BS.append` x)
-  , hash2 = \x y ->  MerkleTreeHash $ sha256 $ BS.concat [BS.singleton 0x01, BA.convert x, BA.convert y]
+    hash0 = sha256 ""
+  , hash1 = \x -> sha256 (BS.singleton 0x00 `BS.append` x)
+  , hash2 = \x y -> sha256 $ BS.concat [BS.singleton 0x01, BA.convert x, BA.convert y]
   }
 
 data HashTree inp ha =
-    Leaf !Int !(MerkleTreeHash ha) inp
-  | Node !Int Int !(MerkleTreeHash ha) !(HashTree inp ha) !(HashTree inp ha)
+    Leaf !Int !(Digest ha) inp
+  | Node !Int Int !(Digest ha) !(HashTree inp ha) !(HashTree inp ha)
   deriving (Eq, Show)
 
 singleton :: (ByteArrayAccess inp, HashAlgorithm ha)
           => Settings inp ha -> inp -> Int -> HashTree inp ha
 singleton settings x i = Leaf i (hash1 settings x) x
 
-mth :: HashTree inp ha -> MerkleTreeHash ha
+mth :: HashTree inp ha -> Digest ha
 mth (Leaf _ ha _)     = ha
 mth (Node _ _ ha _ _) = ha
 
