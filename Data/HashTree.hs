@@ -5,6 +5,7 @@ module Data.HashTree (
   , defaultSettings
   , HashTree
   , fromList
+  , generateInclusionProof
   ) where
 
 import Data.ByteArray (ByteArrayAccess)
@@ -49,10 +50,14 @@ link :: (ByteArrayAccess inp, HashAlgorithm ha)
 link settings l r = Node (idxl l) (idxr r) h l r
   where
     h = hash2 settings (mth l) (mth r)
-    idxl (Leaf i _ _) = i
-    idxl (Node i _ _ _ _) = i
-    idxr (Leaf i _ _) = i
-    idxr (Node _ i _ _ _) = i
+
+idxl :: HashTree t1 t -> Int
+idxl (Leaf i _ _) = i
+idxl (Node i _ _ _ _) = i
+
+idxr :: HashTree t1 t -> Int
+idxr (Leaf i _ _) = i
+idxr (Node _ i _ _ _) = i
 
 fromList :: (ByteArrayAccess inp, HashAlgorithm ha)
          => Settings inp ha -> [inp] -> HashTree inp ha
@@ -70,6 +75,16 @@ pairing :: (ByteArrayAccess inp, HashAlgorithm ha)
          => Settings inp ha -> [HashTree inp ha] -> [HashTree inp ha]
 pairing settings (t:u:vs) = link settings t u : pairing settings vs
 pairing _        ts       = ts
+
+----------------------------------------------------------------
+
+generateInclusionProof :: Int -> HashTree inp ha -> [Digest ha]
+generateInclusionProof i t = reverse $ path i t
+  where
+    path m (Node _ _ _ l r)
+      | m <= idxr l = mth r : path m l
+      | otherwise   = mth l : path m r
+    path _ _ = []
 
 ----------------------------------------------------------------
 {-
