@@ -11,8 +11,10 @@ module Data.HashTree (
   , hash2
     -- * Merkle Hash Trees
   , HashTree
+  , mth
   , fromList
     -- * Inclusion Proof
+  , InclusionProof
   , Index
   , generateInclusionProof
   , verifyingInclusionProof
@@ -54,6 +56,7 @@ defaultSettings = Settings {
 
 ----------------------------------------------------------------
 
+-- | The position of the target element from 0.
 type Index = Int
 
 -- | The data type for Merkle Hash Trees.
@@ -68,6 +71,7 @@ singleton :: (ByteArrayAccess inp, HashAlgorithm ha)
           => Settings inp ha -> inp -> Index -> HashTree inp ha
 singleton settings x i = Leaf i (hash1 settings x) x
 
+-- | Getting a Merkle Tree Hash.
 mth :: HashTree inp ha -> Digest ha
 mth (Leaf _ ha _)     = ha
 mth (Node _ _ ha _ _) = ha
@@ -106,22 +110,33 @@ pairing _        ts       = ts
 
 ----------------------------------------------------------------
 
-generateInclusionProof :: Index -> HashTree inp ha -> [Digest ha]
-generateInclusionProof i t = reverse $ path i t
+data InclusionProof ha = InclusionProof !Int !Index ![Digest ha]
+                       deriving (Eq, Show)
+
+-- | Generating 'InclusionProof' at the server side.
+generateInclusionProof :: Index -> HashTree inp ha -> InclusionProof ha
+generateInclusionProof i t = InclusionProof siz i digests
   where
+    siz = idxr t
     path m (Node _ _ _ l r)
       | m <= idxr l = mth r : path m l
       | otherwise   = mth l : path m r
     path _ _ = []
+    digests = reverse $ path i t
 
+-- | Verifying 'InclusionProof' at the client side.
 verifyingInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
-                        => Settings inp ha -> inp -> Index -> [Digest ha] -> HashTree inp ha -> Bool
-verifyingInclusionProof settings inp idx dsts t = proof dsts dst0 idx0 == mth t
+                        => Settings inp ha
+                        -> inp               -- ^ The target
+                        -> InclusionProof ha -- ^ InclusionProof of the target
+                        -> Digest ha         -- ^ Merkle Tree Hash for the target size
+                        -> Bool
+verifyingInclusionProof settings inp (InclusionProof siz idx dsts) rootMth = verify dsts dst0 idx0 == rootMth
   where
     dst0 = hash1 settings inp
-    idx0 = idx `shiftR` (width (idxr t) - length dsts)
-    proof []     d0 _ = d0
-    proof (d:ds) d0 i = proof ds d' (i `unsafeShiftR` 1)
+    idx0 = idx `shiftR` (width siz - length dsts)
+    verify []     d0 _ = d0
+    verify (d:ds) d0 i = verify ds d' (i `unsafeShiftR` 1)
       where
         d' = if testBit i 0 then hash2 settings d d0
                             else hash2 settings d0 d
