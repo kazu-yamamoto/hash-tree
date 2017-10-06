@@ -11,8 +11,10 @@ module Data.HashTree (
   , hash2
     -- * Merkle Hash Trees
   , HashTree
+  , emptyHashTree
   , mth
   , fromList
+  , add
     -- * Inclusion Proof
   , InclusionProof
   , Index
@@ -27,6 +29,8 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
 import Data.Bits
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HM
 
 ----------------------------------------------------------------
 
@@ -62,51 +66,75 @@ type Index = Int
 -- | The data type for Merkle Hash Trees.
 --   The first parameter is input data type.
 --   The second one is digest data type.
-data HashTree inp ha =
-    Leaf !Index !(Digest ha) inp
-  | Node !Index !Index !(Digest ha) !(HashTree inp ha) !(HashTree inp ha)
+data HashTree inp ha = HashTree {
+    settings :: !(Settings inp ha)
+  , hashtree :: !(MHT inp ha)
+  , indices  :: !(HashMap inp Index)
+  }
+
+data MHT inp ha =
+    Empty !(Digest ha)
+  | Leaf !Index !(Digest ha) inp
+  | Node !Index !Index !(Digest ha) !(MHT inp ha) !(MHT inp ha)
   deriving (Eq, Show)
 
-singleton :: (ByteArrayAccess inp, HashAlgorithm ha)
-          => Settings inp ha -> inp -> Index -> HashTree inp ha
-singleton settings x i = Leaf i (hash1 settings x) x
+-- | Creating an empty 'HashTree'.
+emptyHashTree :: Settings inp ha -> HashTree inp ha
+emptyHashTree set = HashTree set (Empty (hash0 set)) HM.empty
+
+leaf :: (ByteArrayAccess inp, HashAlgorithm ha)
+     => Settings inp ha -> inp -> Index -> MHT inp ha
+leaf set x i = Leaf i (hash1 set x) x
 
 -- | Getting a Merkle Tree Hash.
 mth :: HashTree inp ha -> Digest ha
-mth (Leaf _ ha _)     = ha
-mth (Node _ _ ha _ _) = ha
+mth = mth' . hashtree
+
+mth' :: MHT inp ha -> Digest ha
+mth' (Empty ha) = ha
+mth' (Leaf _ ha _)     = ha
+mth' (Node _ _ ha _ _) = ha
 
 link :: (ByteArrayAccess inp, HashAlgorithm ha)
-     => Settings inp ha -> HashTree inp ha -> HashTree inp ha -> HashTree inp ha
-link settings l r = Node (idxl l) (idxr r) h l r
+     => Settings inp ha -> MHT inp ha -> MHT inp ha -> MHT inp ha
+link set l r = Node (idxl l) (idxr r) h l r
   where
-    h = hash2 settings (mth l) (mth r)
+    h = hash2 set (mth' l) (mth' r)
 
-idxl :: HashTree t1 t -> Index
-idxl (Leaf i _ _) = i
+idxl :: MHT t1 t -> Index
+idxl (Leaf i _ _)     = i
 idxl (Node i _ _ _ _) = i
+idxl _                = error "idxl"
 
-idxr :: HashTree t1 t -> Index
-idxr (Leaf i _ _) = i
+idxr :: MHT t1 t -> Index
+idxr (Leaf i _ _)     = i
 idxr (Node _ i _ _ _) = i
+idxr _                = error "idxr"
 
 -- | Creating a Merkle Hash Tree from a list of elements.
 fromList :: (ByteArrayAccess inp, HashAlgorithm ha)
          => Settings inp ha -> [inp] -> HashTree inp ha
 fromList _ [] = error "No Element"
-fromList settings xs = buildup settings $ map leaf $ zip xs [0..]
+fromList set xs = HashTree set mht undefined
   where
-    leaf = uncurry (singleton settings)
+    toLeaf = uncurry (leaf set)
+    ixs = zip xs [0..]
+    mht = buildup set $ map toLeaf ixs
 
 buildup :: (ByteArrayAccess inp, HashAlgorithm ha)
-         => Settings inp ha -> [HashTree inp ha] -> HashTree inp ha
-buildup _        [t] = t
-buildup settings ts  = buildup settings (pairing settings ts)
+         => Settings inp ha -> [MHT inp ha] -> MHT inp ha
+buildup _   [t] = t
+buildup set ts  = buildup set (pairing set ts)
 
 pairing :: (ByteArrayAccess inp, HashAlgorithm ha)
-         => Settings inp ha -> [HashTree inp ha] -> [HashTree inp ha]
-pairing settings (t:u:vs) = link settings t u : pairing settings vs
-pairing _        ts       = ts
+        => Settings inp ha -> [MHT inp ha] -> [MHT inp ha]
+pairing set (t:u:vs) = link set t u : pairing set vs
+pairing _        ts  = ts
+
+-- | Adding (appending) an element.
+add :: (ByteArrayAccess inp, HashAlgorithm ha)
+     => inp -> HashTree inp ha -> HashTree inp ha
+add = undefined
 
 ----------------------------------------------------------------
 
@@ -115,14 +143,15 @@ data InclusionProof ha = InclusionProof !Int !Index ![Digest ha]
 
 -- | Generating 'InclusionProof' at the server side.
 generateInclusionProof :: Index -> HashTree inp ha -> InclusionProof ha
-generateInclusionProof i t = InclusionProof siz i digests
+generateInclusionProof i ht = InclusionProof siz i digests
   where
-    siz = idxr t
+    mht = hashtree ht
+    siz = idxr mht
     path m (Node _ _ _ l r)
-      | m <= idxr l = mth r : path m l
-      | otherwise   = mth l : path m r
+      | m <= idxr l = mth' r : path m l
+      | otherwise   = mth' l : path m r
     path _ _ = []
-    digests = reverse $ path i t
+    digests = reverse $ path i mht
 
 -- | Verifying 'InclusionProof' at the client side.
 verifyingInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
@@ -131,15 +160,15 @@ verifyingInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
                         -> InclusionProof ha -- ^ InclusionProof of the target
                         -> Digest ha         -- ^ Merkle Tree Hash for the target size
                         -> Bool
-verifyingInclusionProof settings inp (InclusionProof siz idx dsts) rootMth = verify dsts dst0 idx0 == rootMth
+verifyingInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify dsts dst0 idx0 == rootMth
   where
-    dst0 = hash1 settings inp
+    dst0 = hash1 set inp
     idx0 = idx `shiftR` (width siz - length dsts)
     verify []     d0 _ = d0
     verify (d:ds) d0 i = verify ds d' (i `unsafeShiftR` 1)
       where
-        d' = if testBit i 0 then hash2 settings d d0
-                            else hash2 settings d0 d
+        d' = if testBit i 0 then hash2 set d d0
+                            else hash2 set d0 d
 
 ----------------------------------------------------------------
 {-
