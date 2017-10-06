@@ -114,7 +114,7 @@ idxr _                = error "idxr"
 -- | Creating a Merkle Hash Tree from a list of elements.
 fromList :: (ByteArrayAccess inp, HashAlgorithm ha)
          => Settings inp ha -> [inp] -> HashTree inp ha
-fromList _ [] = error "No Element"
+fromList set [] = emptyHashTree set
 fromList set xs = HashTree set mht undefined
   where
     toLeaf = uncurry (leaf set)
