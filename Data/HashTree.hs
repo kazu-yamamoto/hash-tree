@@ -12,6 +12,7 @@ module Data.HashTree (
     -- * Merkle Hash Trees
   , HashTree
   , mth
+  , size
     -- ** Creating Merkle Hash Trees
   , emptyHashTree
   , fromList
@@ -87,7 +88,11 @@ leaf :: (ByteArrayAccess inp, HashAlgorithm ha)
      => Settings inp ha -> inp -> Index -> MHT inp ha
 leaf set x i = Leaf (hash1 set x) i x
 
--- | Getting a Merkle Tree Hash.
+-- | Getting the size
+size :: HashTree inp ha -> Int
+size = idxr . hashtree
+
+-- | Getting the Merkle Tree Hash.
 mth :: HashTree inp ha -> Digest ha
 mth = mth' . hashtree
 
@@ -110,7 +115,7 @@ idxl _                = error "idxl"
 idxr :: MHT t1 t -> Index
 idxr (Leaf _ i _)     = i
 idxr (Node _ _ i _ _) = i
-idxr _                = error "idxr"
+idxr (Empty _)        = 0 -- for size
 
 -- | Creating a Merkle Hash Tree from a list of elements.
 fromList :: (ByteArrayAccess inp, HashAlgorithm ha)
