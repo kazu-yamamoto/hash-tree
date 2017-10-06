@@ -11,9 +11,11 @@ module Data.HashTree (
   , hash2
     -- * Merkle Hash Trees
   , HashTree
-  , emptyHashTree
   , mth
+    -- ** Creating Merkle Hash Trees
+  , emptyHashTree
   , fromList
+    -- ** Appending an element
   , add
     -- * Inclusion Proof
   , InclusionProof
