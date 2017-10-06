@@ -82,6 +82,7 @@ idxr :: HashTree t1 t -> Int
 idxr (Leaf i _ _) = i
 idxr (Node _ i _ _ _) = i
 
+-- | Creating a Merkle Hash Tree from a list of elements.
 fromList :: (ByteArrayAccess inp, HashAlgorithm ha)
          => Settings inp ha -> [inp] -> HashTree inp ha
 fromList _ [] = error "No Element"
