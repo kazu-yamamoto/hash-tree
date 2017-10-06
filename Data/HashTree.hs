@@ -12,6 +12,8 @@ module Data.HashTree (
     -- * Merkle Hash Trees
   , HashTree
   , fromList
+    -- * Inclusion Proof
+  , Index
   , generateInclusionProof
   , verifyingInclusionProof
   ) where
@@ -52,16 +54,18 @@ defaultSettings = Settings {
 
 ----------------------------------------------------------------
 
+type Index = Int
+
 -- | The data type for Merkle Hash Trees.
 --   The first parameter is input data type.
 --   The second one is digest data type.
 data HashTree inp ha =
-    Leaf !Int !(Digest ha) inp
-  | Node !Int Int !(Digest ha) !(HashTree inp ha) !(HashTree inp ha)
+    Leaf !Index !(Digest ha) inp
+  | Node !Index !Index !(Digest ha) !(HashTree inp ha) !(HashTree inp ha)
   deriving (Eq, Show)
 
 singleton :: (ByteArrayAccess inp, HashAlgorithm ha)
-          => Settings inp ha -> inp -> Int -> HashTree inp ha
+          => Settings inp ha -> inp -> Index -> HashTree inp ha
 singleton settings x i = Leaf i (hash1 settings x) x
 
 mth :: HashTree inp ha -> Digest ha
@@ -74,11 +78,11 @@ link settings l r = Node (idxl l) (idxr r) h l r
   where
     h = hash2 settings (mth l) (mth r)
 
-idxl :: HashTree t1 t -> Int
+idxl :: HashTree t1 t -> Index
 idxl (Leaf i _ _) = i
 idxl (Node i _ _ _ _) = i
 
-idxr :: HashTree t1 t -> Int
+idxr :: HashTree t1 t -> Index
 idxr (Leaf i _ _) = i
 idxr (Node _ i _ _ _) = i
 
@@ -102,7 +106,7 @@ pairing _        ts       = ts
 
 ----------------------------------------------------------------
 
-generateInclusionProof :: Int -> HashTree inp ha -> [Digest ha]
+generateInclusionProof :: Index -> HashTree inp ha -> [Digest ha]
 generateInclusionProof i t = reverse $ path i t
   where
     path m (Node _ _ _ l r)
@@ -111,7 +115,7 @@ generateInclusionProof i t = reverse $ path i t
     path _ _ = []
 
 verifyingInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
-                        => Settings inp ha -> inp -> Int -> [Digest ha] -> HashTree inp ha -> Bool
+                        => Settings inp ha -> inp -> Index -> [Digest ha] -> HashTree inp ha -> Bool
 verifyingInclusionProof settings inp idx dsts t = proof dsts dst0 idx0 == mth t
   where
     dst0 = hash1 settings inp
