@@ -1,8 +1,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- | Two-way (binary) Merkle Hash Trees
 module Data.HashTree (
-    Settings(..)
+    -- * Settings
+    Settings
   , defaultSettings
+    -- ** Settings accessors
+  , hash0
+  , hash1
+  , hash2
+    -- * Merkle Hash Trees
   , HashTree
   , fromList
   , generateInclusionProof
@@ -17,15 +24,25 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
 import Data.Bits
 
+----------------------------------------------------------------
+
+-- | Settings for Merkle Hash Trees.
+--   The first parameter is input data type.
+--   The second one is digest data type.
 data Settings inp ha = Settings {
+    -- | A hash value for non input element.
     hash0 :: Digest ha
+    -- | A hash function for one input element.
   , hash1 :: inp -> Digest ha
+    -- | A hash function for two input elements.
   , hash2 :: Digest ha -> Digest ha -> Digest ha
   }
 
 sha256 :: ByteString -> Digest SHA256
 sha256 = hash
 
+-- | A default Settings with 'ByteString' and 'SHA256'.
+--   This can be used for CT(Certificate Transparency) defined in RFC 6962.
 defaultSettings :: Settings ByteString SHA256
 defaultSettings = Settings {
     hash0 = sha256 ""
@@ -33,6 +50,11 @@ defaultSettings = Settings {
   , hash2 = \x y -> sha256 $ BS.concat [BS.singleton 0x01, BA.convert x, BA.convert y]
   }
 
+----------------------------------------------------------------
+
+-- | The data type for Merkle Hash Trees.
+--   The first parameter is input data type.
+--   The second one is digest data type.
 data HashTree inp ha =
     Leaf !Int !(Digest ha) inp
   | Node !Int Int !(Digest ha) !(HashTree inp ha) !(HashTree inp ha)
