@@ -17,7 +17,6 @@ module Data.HashTree (
   , add
     -- * Inclusion Proof
   , InclusionProof
-  , Index
   , generateInclusionProof
   , verifyingInclusionProof
   ) where
@@ -29,8 +28,8 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
 import Data.Bits
-import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HM
+import Data.Map.Strict (Map)
+import qualified Data.Map.Strict as Map
 
 ----------------------------------------------------------------
 
@@ -69,7 +68,7 @@ type Index = Int
 data HashTree inp ha = HashTree {
     settings :: !(Settings inp ha)
   , hashtree :: !(MHT inp ha)
-  , indices  :: !(HashMap inp Index)
+  , indices  :: !(Map (Digest ha) Index)
   }
 
 data MHT inp ha =
@@ -80,7 +79,7 @@ data MHT inp ha =
 
 -- | Creating an empty 'HashTree'.
 emptyHashTree :: Settings inp ha -> HashTree inp ha
-emptyHashTree set = HashTree set (Empty (hash0 set)) HM.empty
+emptyHashTree set = HashTree set (Empty (hash0 set)) Map.empty
 
 leaf :: (ByteArrayAccess inp, HashAlgorithm ha)
      => Settings inp ha -> inp -> Index -> MHT inp ha
@@ -115,11 +114,13 @@ idxr _                = error "idxr"
 fromList :: (ByteArrayAccess inp, HashAlgorithm ha)
          => Settings inp ha -> [inp] -> HashTree inp ha
 fromList set [] = emptyHashTree set
-fromList set xs = HashTree set mht undefined
+fromList set xs = HashTree set mht hm
   where
     toLeaf = uncurry (leaf set)
-    ixs = zip xs [0..]
-    mht = buildup set $ map toLeaf ixs
+    leaves = map toLeaf $ zip xs [0..]
+    mht = buildup set leaves
+    kvs = map (\(Leaf h i _) -> (h,i)) leaves
+    hm = Map.fromList kvs
 
 buildup :: (ByteArrayAccess inp, HashAlgorithm ha)
          => Settings inp ha -> [MHT inp ha] -> MHT inp ha
@@ -141,17 +142,20 @@ add = undefined
 data InclusionProof ha = InclusionProof !Int !Index ![Digest ha]
                        deriving (Eq, Show)
 
--- | Generating 'InclusionProof' at the server side.
-generateInclusionProof :: Index -> HashTree inp ha -> InclusionProof ha
-generateInclusionProof i ht = InclusionProof siz i digests
+-- | Generating 'InclusionProof' for the target at the server side.
+generateInclusionProof :: inp -> HashTree inp ha -> Maybe (InclusionProof ha)
+generateInclusionProof inp ht = case Map.lookup h (indices ht) of
+    Nothing -> Nothing
+    Just i  -> Just $ InclusionProof siz i (digests i)
   where
+    h = hash1 (settings ht) inp
     mht = hashtree ht
     siz = idxr mht
     path m (Node _ _ _ l r)
       | m <= idxr l = mth' r : path m l
       | otherwise   = mth' l : path m r
     path _ _ = []
-    digests = reverse $ path i mht
+    digests i = reverse $ path i mht
 
 -- | Verifying 'InclusionProof' at the client side.
 verifyingInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
