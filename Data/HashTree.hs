@@ -74,8 +74,8 @@ data HashTree inp ha = HashTree {
 
 data MHT inp ha =
     Empty !(Digest ha)
-  | Leaf !Index !(Digest ha) inp
-  | Node !Index !Index !(Digest ha) !(MHT inp ha) !(MHT inp ha)
+  | Leaf  !(Digest ha) !Index inp
+  | Node  !(Digest ha) !Index !Index !(MHT inp ha) !(MHT inp ha)
   deriving (Eq, Show)
 
 -- | Creating an empty 'HashTree'.
@@ -84,31 +84,31 @@ emptyHashTree set = HashTree set (Empty (hash0 set)) HM.empty
 
 leaf :: (ByteArrayAccess inp, HashAlgorithm ha)
      => Settings inp ha -> inp -> Index -> MHT inp ha
-leaf set x i = Leaf i (hash1 set x) x
+leaf set x i = Leaf (hash1 set x) i x
 
 -- | Getting a Merkle Tree Hash.
 mth :: HashTree inp ha -> Digest ha
 mth = mth' . hashtree
 
 mth' :: MHT inp ha -> Digest ha
-mth' (Empty ha) = ha
-mth' (Leaf _ ha _)     = ha
-mth' (Node _ _ ha _ _) = ha
+mth' (Empty ha)         = ha
+mth' (Leaf  ha _ _)     = ha
+mth' (Node  ha _ _ _ _) = ha
 
 link :: (ByteArrayAccess inp, HashAlgorithm ha)
      => Settings inp ha -> MHT inp ha -> MHT inp ha -> MHT inp ha
-link set l r = Node (idxl l) (idxr r) h l r
+link set l r = Node h (idxl l) (idxr r) l r
   where
     h = hash2 set (mth' l) (mth' r)
 
 idxl :: MHT t1 t -> Index
-idxl (Leaf i _ _)     = i
-idxl (Node i _ _ _ _) = i
+idxl (Leaf _ i _)     = i
+idxl (Node _ i _ _ _) = i
 idxl _                = error "idxl"
 
 idxr :: MHT t1 t -> Index
-idxr (Leaf i _ _)     = i
-idxr (Node _ i _ _ _) = i
+idxr (Leaf _ i _)     = i
+idxr (Node _ _ i _ _) = i
 idxr _                = error "idxr"
 
 -- | Creating a Merkle Hash Tree from a list of elements.
