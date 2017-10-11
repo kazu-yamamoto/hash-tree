@@ -24,13 +24,14 @@ module Data.HashTree (
   , verifyingInclusionProof
   ) where
 
+import Crypto.Hash
+import Data.Bits
 import Data.ByteArray (ByteArrayAccess)
 import qualified Data.ByteArray as BA
-import Crypto.Hash
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 ()
-import Data.Bits
+import Data.List (foldl')
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 
@@ -84,13 +85,13 @@ data MHT inp ha =
 emptyHashTree :: Settings inp ha -> HashTree inp ha
 emptyHashTree set = HashTree set (Empty (hash0 set)) Map.empty
 
-leaf :: (ByteArrayAccess inp, HashAlgorithm ha)
-     => Settings inp ha -> inp -> Index -> MHT inp ha
-leaf set x i = Leaf (hash1 set x) i x
-
 -- | Getting the size
 size :: HashTree inp ha -> Int
-size = idxr . hashtree
+size = size' . hashtree
+
+size' :: MHT inp ha -> Int
+size' (Empty _) = 0
+size' t         = idxr t + 1
 
 -- | Getting the Merkle Tree Hash.
 mth :: HashTree inp ha -> Digest ha
@@ -101,48 +102,47 @@ mth' (Empty ha)         = ha
 mth' (Leaf  ha _ _)     = ha
 mth' (Node  ha _ _ _ _) = ha
 
-link :: (ByteArrayAccess inp, HashAlgorithm ha)
-     => Settings inp ha -> MHT inp ha -> MHT inp ha -> MHT inp ha
-link set l r = Node h (idxl l) (idxr r) l r
-  where
-    h = hash2 set (mth' l) (mth' r)
-
+{-
 idxl :: MHT t1 t -> Index
 idxl (Leaf _ i _)     = i
 idxl (Node _ i _ _ _) = i
 idxl _                = error "idxl"
+-}
 
 idxr :: MHT t1 t -> Index
 idxr (Leaf _ i _)     = i
 idxr (Node _ _ i _ _) = i
-idxr (Empty _)        = 0 -- for size
+idxr (Empty _)        = error "idxr"
 
--- | Creating a Merkle Hash Tree from a list of elements.
+-- | Creating a Merkle Hash Tree from a list of elements. O(n log n)
 fromList :: (ByteArrayAccess inp, HashAlgorithm ha)
          => Settings inp ha -> [inp] -> HashTree inp ha
-fromList set [] = emptyHashTree set
-fromList set xs = HashTree set mht hm
-  where
-    toLeaf = uncurry (leaf set)
-    leaves = map toLeaf $ zip xs [0..]
-    mht = buildup set leaves
-    kvs = map (\(Leaf h i _) -> (h,i)) leaves
-    hm = Map.fromList kvs
+fromList set xs = foldl' (flip add) (emptyHashTree set) xs
 
-buildup :: (ByteArrayAccess inp, HashAlgorithm ha)
-         => Settings inp ha -> [MHT inp ha] -> MHT inp ha
-buildup _   [t] = t
-buildup set ts  = buildup set (pairing set ts)
-
-pairing :: (ByteArrayAccess inp, HashAlgorithm ha)
-        => Settings inp ha -> [MHT inp ha] -> [MHT inp ha]
-pairing set (t:u:vs) = link set t u : pairing set vs
-pairing _        ts  = ts
-
--- | Adding (appending) an element.
+-- | Adding (appending) an element. O(log n)
 add :: (ByteArrayAccess inp, HashAlgorithm ha)
      => inp -> HashTree inp ha -> HashTree inp ha
-add = undefined
+add a ht@(HashTree set mht idb) = case Map.lookup hx idb of
+    Just _  -> ht
+    Nothing -> HashTree set mht' idb'
+  where
+    idb' = Map.insert hx ix idb
+
+    hx = hash1 set a
+    ix = size' mht
+    x = Leaf hx ix a
+
+    mht' = ins mht
+    hash2' = hash2 set
+    ins (Empty _)           = x
+    ins l@(Leaf hl il _ )   = Node (hash2' hl hx) il ix l x
+    ins t@(Node h il ir l r)
+      | isPowerOf2 siz = Node (hash2' h hx) il ix t x
+      | otherwise      = let r' = ins r
+                             h' = hash2' (mth' l) (mth' r')
+                         in Node h' il ix l r'
+      where
+        siz = ir - il + 1
 
 ----------------------------------------------------------------
 
@@ -181,14 +181,8 @@ verifyingInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify d
         d' = if testBit i 0 then hash2 set d d0
                             else hash2 set d0 d
 
-----------------------------------------------------------------
-{-
-mergeCount :: Int -> Int
-mergeCount = countTrailingZeros . complement
-
-log2Int :: Int -> Int
-log2Int x = finiteBitSize x - 1 - countLeadingZeros x
--}
-
 width :: Int -> Int
 width x = finiteBitSize x - countLeadingZeros x
+
+isPowerOf2 :: Int -> Bool
+isPowerOf2 n = (n .&. (n - 1)) == 0
