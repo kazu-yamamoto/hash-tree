@@ -1,0 +1,39 @@
+Name:                   hash-tree
+Version:                0.0.0
+Author:                 Kazu Yamamoto <kazu@iij.ad.jp>
+Maintainer:             Kazu Yamamoto <kazu@iij.ad.jp>
+License:                BSD3
+License-File:           LICENSE
+Synopsis:               Merkle Hash Tree
+Description:            Purely functional Merkle hash tree
+Category:               Data
+Cabal-Version:          >= 1.10
+Build-Type:             Simple
+
+Library
+  Default-Language:     Haskell2010
+  GHC-Options:          -Wall
+  Exposed-Modules:      Data.HashTree
+  Build-Depends:        base >= 4 && < 5
+                      , bytestring
+                      , containers
+                      , cryptonite
+                      , memory
+
+Test-Suite spec
+  Type:                 exitcode-stdio-1.0
+  Default-Language:     Haskell2010
+  HS-Source-Dirs:       test
+  Ghc-Options:          -Wall
+  Main-Is:              Spec.hs
+  Other-Modules:        HashTreeSpec
+  Build-Depends:        base >= 4 && < 5
+                      , bytestring
+                      , hash-tree
+                      , hspec
+                      , QuickCheck
+
+Source-Repository head
+  Type:                 git
+  Location:             https://github.com/kazu-yamamoto/hash-tree
+
