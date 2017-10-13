@@ -1,4 +1,4 @@
--- | Two-way (binary) Merkle Hash Trees
+-- | Two-way (binary) Merkle Hash Trees.
 module Data.HashTree (
     -- * Settings
     Settings
