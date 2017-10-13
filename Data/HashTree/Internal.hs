@@ -31,6 +31,10 @@ import qualified Data.Map.Strict as Map
 -- | Settings for Merkle Hash Trees.
 --   The first parameter is input data type.
 --   The second one is digest data type.
+--
+-- To create this, use 'defaultSettings':
+--
+-- > defaultSettings { hash0 = ..., hash1 = ..., hash2 = ... }
 data Settings inp ha = Settings {
     -- | A hash value for non input element.
     hash0 :: Digest ha
