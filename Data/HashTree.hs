@@ -9,8 +9,8 @@ module Data.HashTree (
   , hash2
     -- * Merkle Hash Trees
   , MerkleHashTrees
-  , mth
   , size
+  , digest
     -- ** Creating Merkle Hash Trees
   , empty
   , fromList

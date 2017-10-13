@@ -4,8 +4,8 @@ module Data.HashTree.Internal (
     Settings(..)
   , defaultSettings
   , MerkleHashTrees(..)
-  , mth
   , size
+  , digest
   , empty
   , fromList
   , fromList'
@@ -70,6 +70,16 @@ data MerkleHashTrees inp ha = MerkleHashTrees {
   , indices  :: !(Map (Digest ha) Index)
   }
 
+-- | Getting the size
+size :: MerkleHashTrees inp ha -> Int
+size = treeSize . hashtree
+
+-- | Getting the Merkle Tree Hash.
+digest :: MerkleHashTrees inp ha -> Digest ha
+digest = value . hashtree
+
+----------------------------------------------------------------
+
 data HashTree inp ha =
     Empty !(Digest ha)
   | Leaf  !(Digest ha) !Index inp
@@ -80,31 +90,23 @@ data HashTree inp ha =
 empty :: Settings inp ha -> MerkleHashTrees inp ha
 empty set = MerkleHashTrees set (Empty (hash0 set)) Map.empty
 
--- | Getting the size
-size :: MerkleHashTrees inp ha -> Int
-size = size' . hashtree
+treeSize :: HashTree inp ha -> Int
+treeSize (Empty _) = 0
+treeSize ht        = idxr ht + 1
 
-size' :: HashTree inp ha -> Int
-size' (Empty _) = 0
-size' t         = idxr t + 1
-
--- | Getting the Merkle Tree Hash.
-mth :: MerkleHashTrees inp ha -> Digest ha
-mth = mth' . hashtree
-
-mth' :: HashTree inp ha -> Digest ha
-mth' (Empty ha)         = ha
-mth' (Leaf  ha _ _)     = ha
-mth' (Node  ha _ _ _ _) = ha
+value :: HashTree inp ha -> Digest ha
+value (Empty ha)         = ha
+value (Leaf  ha _ _)     = ha
+value (Node  ha _ _ _ _) = ha
 
 ----------------------------------------------------------------
 
-idxl :: HashTree t1 t -> Index
+idxl :: HashTree inp ha -> Index
 idxl (Leaf _ i _)     = i
 idxl (Node _ i _ _ _) = i
 idxl _                = error "idxl"
 
-idxr :: HashTree t1 t -> Index
+idxr :: HashTree inp ha -> Index
 idxr (Leaf _ i _)     = i
 idxr (Node _ _ i _ _) = i
 idxr (Empty _)        = error "idxr"
@@ -119,24 +121,24 @@ fromList set xs = foldl' (flip add) (empty set) xs
 -- | Adding (appending) an element. O(log n)
 add :: (ByteArrayAccess inp, HashAlgorithm ha)
      => inp -> MerkleHashTrees inp ha -> MerkleHashTrees inp ha
-add a ht@(MerkleHashTrees set mht idb) = case Map.lookup hx idb of
-    Just _  -> ht
-    Nothing -> MerkleHashTrees set mht' idb'
+add a mht@(MerkleHashTrees set ht idb) = case Map.lookup hx idb of
+    Just _  -> mht
+    Nothing -> MerkleHashTrees set ht' idb'
   where
     idb' = Map.insert hx ix idb
 
     hx = hash1 set a
-    ix = size' mht
+    ix = treeSize ht
     x = Leaf hx ix a
 
-    mht' = ins mht
+    ht' = ins ht
     hash2' = hash2 set
     ins (Empty _)           = x
     ins l@(Leaf hl il _ )   = Node (hash2' hl hx) il ix l x
     ins t@(Node h il ir l r)
       | isPowerOf2 siz = Node (hash2' h hx) il ix t x
       | otherwise      = let r' = ins r
-                             h' = hash2' (mth' l) (mth' r')
+                             h' = hash2' (value l) (value r')
                          in Node h' il ix l r'
       where
         siz = ir - il + 1
@@ -146,11 +148,11 @@ add a ht@(MerkleHashTrees set mht idb) = case Map.lookup hx idb of
 fromList' :: (ByteArrayAccess inp, HashAlgorithm ha)
           => Settings inp ha -> [inp] -> HashTree inp ha
 fromList' set [] = Empty $ hash0 set -- not used
-fromList' set xs = mht
+fromList' set xs = ht
   where
     toLeaf = uncurry (leaf set)
     leaves = map toLeaf $ zip xs [0..]
-    mht = buildup set leaves
+    ht = buildup set leaves
 
 leaf :: (ByteArrayAccess inp, HashAlgorithm ha)
      => Settings inp ha -> inp -> Index -> HashTree inp ha
@@ -160,17 +162,17 @@ link :: (ByteArrayAccess inp, HashAlgorithm ha)
      => Settings inp ha -> HashTree inp ha -> HashTree inp ha -> HashTree inp ha
 link set l r = Node h (idxl l) (idxr r) l r
   where
-    h = hash2 set (mth' l) (mth' r)
+    h = hash2 set (value l) (value r)
 
 buildup :: (ByteArrayAccess inp, HashAlgorithm ha)
          => Settings inp ha -> [HashTree inp ha] -> HashTree inp ha
-buildup _   [t] = t
-buildup set ts  = buildup set (pairing set ts)
+buildup _   [ht] = ht
+buildup set hts  = buildup set (pairing set hts)
 
 pairing :: (ByteArrayAccess inp, HashAlgorithm ha)
         => Settings inp ha -> [HashTree inp ha] -> [HashTree inp ha]
 pairing set (t:u:vs) = link set t u : pairing set vs
-pairing _        ts  = ts
+pairing _       hts  = hts
 
 ----------------------------------------------------------------
 
@@ -179,18 +181,18 @@ data InclusionProof ha = InclusionProof !Int !Index ![Digest ha]
 
 -- | Generating 'InclusionProof' for the target at the server side.
 generateInclusionProof :: inp -> MerkleHashTrees inp ha -> Maybe (InclusionProof ha)
-generateInclusionProof inp ht = case Map.lookup h (indices ht) of
+generateInclusionProof inp mht = case Map.lookup h (indices mht) of
     Nothing -> Nothing
     Just i  -> Just $ InclusionProof siz i (digests i)
   where
-    h = hash1 (settings ht) inp
-    mht = hashtree ht
-    siz = idxr mht
+    h = hash1 (settings mht) inp
+    ht = hashtree mht
+    siz = idxr ht
     path m (Node _ _ _ l r)
-      | m <= idxr l = mth' r : path m l
-      | otherwise   = mth' l : path m r
+      | m <= idxr l = value r : path m l
+      | otherwise   = value l : path m r
     path _ _ = []
-    digests i = reverse $ path i mht
+    digests i = reverse $ path i ht
 
 -- | Verifying 'InclusionProof' at the client side.
 verifyingInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
@@ -209,10 +211,10 @@ verifyingInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify d
         d' = if testBit i 0 then hash2 set d d0
                             else hash2 set d0 d
 
+----------------------------------------------------------------
+
 width :: Int -> Int
 width x = finiteBitSize x - countLeadingZeros x
 
 isPowerOf2 :: Int -> Bool
 isPowerOf2 n = (n .&. (n - 1)) == 0
-
-
