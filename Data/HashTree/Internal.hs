@@ -5,6 +5,7 @@ module Data.HashTree.Internal (
   , defaultSettings
   , MerkleHashTrees(..)
   , digest
+  , currentHead
   , empty
   , fromList
   , fromList'
@@ -24,6 +25,8 @@ import Data.ByteString.Char8 ()
 import Data.List (foldl')
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
+import Data.IntMap.Strict (IntMap)
+import qualified Data.IntMap.Strict as IntMap
 
 ----------------------------------------------------------------
 
@@ -64,16 +67,21 @@ type Index = Int
 --   The first parameter is input data type.
 --   The second one is digest data type.
 data MerkleHashTrees inp ha = MerkleHashTrees {
-    settings :: !(Settings inp ha)
+    settings  :: !(Settings inp ha)
     -- | Getting the log size
-  , size     :: !Int
-  , hashtree :: !(HashTree inp ha)
-  , indices  :: !(Map (Digest ha) Index)
+  , size      :: !Int
+  , hashtrees :: !(IntMap (HashTree inp ha))
+  , indices   :: !(Map (Digest ha) Index)
   }
 
 -- | Getting the Merkle Tree Hash.
-digest :: MerkleHashTrees inp ha -> Digest ha
-digest = value . hashtree
+digest :: Int -> MerkleHashTrees inp ha -> Maybe (Digest ha)
+digest i mht = case IntMap.lookup i (hashtrees mht) of
+    Nothing -> Nothing
+    Just ht -> Just $ value ht
+
+currentHead :: MerkleHashTrees inp ha -> Maybe (HashTree inp ha)
+currentHead (MerkleHashTrees _ siz htdb _) = IntMap.lookup siz htdb
 
 ----------------------------------------------------------------
 
@@ -86,15 +94,11 @@ data HashTree inp ha =
 -- | Creating an empty 'MerkleHashTrees'.
 empty :: Settings inp ha -> MerkleHashTrees inp ha
 empty set = MerkleHashTrees {
-    settings = set
-  , size = 0
-  , hashtree = Empty (hash0 set)
-  , indices = Map.empty
+    settings  = set
+  , size      = 0
+  , hashtrees = IntMap.insert 0 (Empty (hash0 set)) IntMap.empty
+  , indices   = Map.empty
   }
-
-treeSize :: HashTree inp ha -> Int
-treeSize (Empty _) = 0
-treeSize ht        = idxr ht + 1
 
 value :: HashTree inp ha -> Digest ha
 value (Empty ha)         = ha
@@ -123,28 +127,34 @@ fromList set xs = foldl' (flip add) (empty set) xs
 -- | Adding (appending) an element. O(log n)
 add :: (ByteArrayAccess inp, HashAlgorithm ha)
      => inp -> MerkleHashTrees inp ha -> MerkleHashTrees inp ha
-add a mht@(MerkleHashTrees set siz ht idb) = case Map.lookup hx idb of
-    Just _  -> mht
-    Nothing -> MerkleHashTrees set siz' ht' idb'
+add a mht@(MerkleHashTrees set siz htdb idb) =
+    case Map.lookup hx idb of
+        Just _  -> mht
+        Nothing -> case IntMap.lookup siz htdb of
+            Just ht -> let ht' = newht ht
+                           htdb' = IntMap.insert siz' ht' htdb
+                       in MerkleHashTrees set siz' htdb' idb'
+            Nothing -> mht -- never reach
   where
-    idb' = Map.insert hx ix idb
     siz' = siz + 1
-
     hx = hash1 set a
-    ix = treeSize ht
-    x = Leaf hx ix a
+    idb' = Map.insert hx siz idb
 
-    ht' = ins ht
-    hash2' = hash2 set
-    ins (Empty _)           = x
-    ins l@(Leaf hl il _ )   = Node (hash2' hl hx) il ix l x
-    ins t@(Node h il ir l r)
-      | isPowerOf2 sz = Node (hash2' h hx) il ix t x
-      | otherwise     = let r' = ins r
-                            h' = hash2' (value l) (value r')
-                        in Node h' il ix l r'
+    newht ht = ins ht
       where
-        sz = ir - il + 1
+        ix = siz
+        x = Leaf hx ix a
+
+        hash2' = hash2 set
+        ins (Empty _)           = x
+        ins l@(Leaf hl il _ )   = Node (hash2' hl hx) il ix l x
+        ins t@(Node h il ir l r)
+          | isPowerOf2 sz = Node (hash2' h hx) il ix t x
+          | otherwise     = let r' = ins r
+                                h' = hash2' (value l) (value r')
+                            in Node h' il ix l r'
+          where
+            sz = ir - il + 1
 
 ----------------------------------------------------------------
 
@@ -184,18 +194,17 @@ data InclusionProof ha = InclusionProof !Int !Index ![Digest ha]
 
 -- | Generating 'InclusionProof' for the target at the server side.
 generateInclusionProof :: inp -> MerkleHashTrees inp ha -> Maybe (InclusionProof ha)
-generateInclusionProof inp mht = case Map.lookup h (indices mht) of
-    Nothing -> Nothing
-    Just i  -> Just $ InclusionProof siz i (digests i)
+generateInclusionProof inp (MerkleHashTrees set siz htdb idb) = do
+    ht <- IntMap.lookup siz htdb
+    i <- Map.lookup h idb
+    let digests = reverse $ path i ht
+    return $ InclusionProof siz i digests
   where
-    h = hash1 (settings mht) inp
-    ht = hashtree mht
-    siz = idxr ht
+    h = hash1 set inp
     path m (Node _ _ _ l r)
       | m <= idxr l = value r : path m l
       | otherwise   = value l : path m r
     path _ _ = []
-    digests i = reverse $ path i ht
 
 -- | Verifying 'InclusionProof' at the client side.
 verifyingInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)

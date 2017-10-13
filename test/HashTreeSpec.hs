@@ -23,11 +23,12 @@ spec = do
     describe "fromList" $ do
         prop "creates a perfectly branched tree" $ \(Input bss) ->
             let bss' = nub bss
-                ht = hashtree $ fromList set bss'
+                Just ht = currentHead $ fromList set bss'
                 ht' = fromList' set bss'
             in ht == ht'
     describe "verifyingInclusionProof" $ do
         prop "can be verified for a good target" $ \(Input bss@(b:_)) ->
             let mht = fromList set bss
                 proof = fromJust $ generateInclusionProof b mht
-            in verifyingInclusionProof set b proof (digest mht)
+                Just h = digest (size mht) mht
+            in verifyingInclusionProof set b proof h
