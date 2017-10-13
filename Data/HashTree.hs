@@ -8,11 +8,11 @@ module Data.HashTree (
   , hash1
   , hash2
     -- * Merkle Hash Trees
-  , HashTree
+  , MerkleHashTrees
   , mth
   , size
     -- ** Creating Merkle Hash Trees
-  , emptyHashTree
+  , empty
   , fromList
     -- ** Appending an element
   , add
