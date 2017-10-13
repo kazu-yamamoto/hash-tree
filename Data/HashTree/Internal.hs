@@ -12,7 +12,7 @@ module Data.HashTree.Internal (
   , add
   , InclusionProof(..)
   , generateInclusionProof
-  , verifyingInclusionProof
+  , verifyInclusionProof
   ) where
 
 import Crypto.Hash
@@ -206,14 +206,14 @@ generateInclusionProof inp (MerkleHashTrees set siz htdb idb) = do
       | otherwise   = value l : path m r
     path _ _ = []
 
--- | Verifying 'InclusionProof' at the client side.
-verifyingInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
-                        => Settings inp ha
-                        -> inp               -- ^ The target
-                        -> InclusionProof ha -- ^ InclusionProof of the target
-                        -> Digest ha         -- ^ Merkle Tree Hash for the target size
-                        -> Bool
-verifyingInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify dsts dst0 idx0 == rootMth
+-- | Verify 'InclusionProof' at the client side.
+verifyInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
+                     => Settings inp ha
+                     -> inp               -- ^ The target
+                     -> InclusionProof ha -- ^ InclusionProof of the target
+                     -> Digest ha         -- ^ Merkle Tree Hash for the target size
+                     -> Bool
+verifyInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify dsts dst0 idx0 == rootMth
   where
     dst0 = hash1 set inp
     idx0 = idx `shiftR` (width siz - length dsts)

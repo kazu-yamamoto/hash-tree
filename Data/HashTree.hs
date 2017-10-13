@@ -19,7 +19,7 @@ module Data.HashTree (
     -- * Inclusion Proof
   , InclusionProof
   , generateInclusionProof
-  , verifyingInclusionProof
+  , verifyInclusionProof
   ) where
 
 import Data.HashTree.Internal

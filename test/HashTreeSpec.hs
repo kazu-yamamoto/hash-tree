@@ -26,9 +26,9 @@ spec = do
                 Just ht = currentHead $ fromList set bss'
                 ht' = fromList' set bss'
             in ht == ht'
-    describe "verifyingInclusionProof" $ do
+    describe "verifyInclusionProof" $ do
         prop "can be verified for a good target" $ \(Input bss@(b:_)) ->
             let mht = fromList set bss
                 proof = fromJust $ generateInclusionProof b mht
                 Just h = digest (size mht) mht
-            in verifyingInclusionProof set b proof h
+            in verifyInclusionProof set b proof h
