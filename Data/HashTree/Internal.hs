@@ -4,7 +4,6 @@ module Data.HashTree.Internal (
     Settings(..)
   , defaultSettings
   , MerkleHashTrees(..)
-  , size
   , digest
   , empty
   , fromList
@@ -66,13 +65,11 @@ type Index = Int
 --   The second one is digest data type.
 data MerkleHashTrees inp ha = MerkleHashTrees {
     settings :: !(Settings inp ha)
+    -- | Getting the log size
+  , size     :: !Int
   , hashtree :: !(HashTree inp ha)
   , indices  :: !(Map (Digest ha) Index)
   }
-
--- | Getting the size
-size :: MerkleHashTrees inp ha -> Int
-size = treeSize . hashtree
 
 -- | Getting the Merkle Tree Hash.
 digest :: MerkleHashTrees inp ha -> Digest ha
@@ -88,7 +85,12 @@ data HashTree inp ha =
 
 -- | Creating an empty 'MerkleHashTrees'.
 empty :: Settings inp ha -> MerkleHashTrees inp ha
-empty set = MerkleHashTrees set (Empty (hash0 set)) Map.empty
+empty set = MerkleHashTrees {
+    settings = set
+  , size = 0
+  , hashtree = Empty (hash0 set)
+  , indices = Map.empty
+  }
 
 treeSize :: HashTree inp ha -> Int
 treeSize (Empty _) = 0
@@ -121,11 +123,12 @@ fromList set xs = foldl' (flip add) (empty set) xs
 -- | Adding (appending) an element. O(log n)
 add :: (ByteArrayAccess inp, HashAlgorithm ha)
      => inp -> MerkleHashTrees inp ha -> MerkleHashTrees inp ha
-add a mht@(MerkleHashTrees set ht idb) = case Map.lookup hx idb of
+add a mht@(MerkleHashTrees set siz ht idb) = case Map.lookup hx idb of
     Just _  -> mht
-    Nothing -> MerkleHashTrees set ht' idb'
+    Nothing -> MerkleHashTrees set siz' ht' idb'
   where
     idb' = Map.insert hx ix idb
+    siz' = siz + 1
 
     hx = hash1 set a
     ix = treeSize ht
@@ -136,12 +139,12 @@ add a mht@(MerkleHashTrees set ht idb) = case Map.lookup hx idb of
     ins (Empty _)           = x
     ins l@(Leaf hl il _ )   = Node (hash2' hl hx) il ix l x
     ins t@(Node h il ir l r)
-      | isPowerOf2 siz = Node (hash2' h hx) il ix t x
-      | otherwise      = let r' = ins r
-                             h' = hash2' (value l) (value r')
-                         in Node h' il ix l r'
+      | isPowerOf2 sz = Node (hash2' h hx) il ix t x
+      | otherwise     = let r' = ins r
+                            h' = hash2' (value l) (value r')
+                        in Node h' il ix l r'
       where
-        siz = ir - il + 1
+        sz = ir - il + 1
 
 ----------------------------------------------------------------
 
