@@ -34,3 +34,17 @@ spec = do
                 proof = fromJust $ generateInclusionProof b mht
                 Just h = digest (size mht) mht
             in verifyInclusionProof set b proof h
+    describe "verifyConsistencyProof" $ do
+        prop "can be verified" $ \(Input bss) m0 n0 ->
+            let mht = fromList set bss
+                siz = size mht
+                aj x b
+                  | x < 0     = negate x `mod` b
+                  | otherwise = x `mod` b
+                m0' = aj m0 siz
+                n0' = aj n0 siz
+                (m,n) = if m0' <= n0' then (m0',n0') else (n0',m0')
+                proof = fromJust $ generateConsistencyProof m n mht
+                Just dm = digest m mht
+                Just dn = digest n mht
+            in verifyConsistencyProof set dm dn proof

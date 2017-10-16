@@ -238,23 +238,31 @@ verifyInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify dsts
 data ConsistencyProof ha = ConsistencyProof !Index !Index ![Digest ha]
                          deriving (Eq, Show)
 
-generateConsistencyProof :: Eq inp => Index -> Index -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
-generateConsistencyProof m n (MerkleHashTrees _ _ htdb _) = do
-    htm <- IntMap.lookup m htdb
-    htn <- IntMap.lookup n htdb
-    let digests = proof htm htn True
-    return $ ConsistencyProof m n digests
+generateConsistencyProof :: (Show inp, Eq inp) => Index -> Index -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
+generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
+  | m < 0 || n < 0 = Nothing
+  | m > n          = Nothing
+  | m == 0         = do
+      htn <- IntMap.lookup n htdb
+      return $ ConsistencyProof m n [value htn]
+  | otherwise = do
+      htm <- IntMap.lookup m htdb
+      htn <- IntMap.lookup n htdb
+      let digests = prove htm htn True
+      return $ ConsistencyProof m n digests
   where
-    proof htm htn flag
+    prove htm htn flag
       | htm == htn = if flag then [] else [value htm]
-    proof htm@(Leaf _ _ _) (Node _ _ _ ln rn) flag
-                   = proof htm ln flag ++ [value rn]
-    proof htm@(Node _ _ midxr lm rm)  (Node _ _ nidxr ln rn) flag
-      | midxr < k  = proof htm ln flag ++ [value rn]
-      | otherwise  = proof rm rn False ++ [value lm]
+    prove htm@(Leaf _ _ _) (Node _ _ _ ln rn) flag
+                   = prove htm ln flag ++ [value rn]
+    prove htm@(Node _ midxl midxr lm rm)  (Node _ nidxl nidxr ln rn) flag
+      | sizm <= k  = prove htm ln flag ++ [value rn]
+      | otherwise  = prove rm rn False ++ [value lm]
       where
-        k = maxPowerOf2 nidxr
-    proof _ _ _    = error "generateConsistencyProof:proof"
+        sizm = midxr - midxl + 1
+        sizn = nidxr - nidxl + 1
+        k = maxPowerOf2 sizn
+    prove htm htn _    = error $ "generateConsistencyProof:prove" ++ "{" ++ show htm ++ "} {"++ show htn ++ "}"
 
 verifyConsistencyProof :: (ByteArrayAccess inp, HashAlgorithm ha)
                        => Settings inp ha
@@ -262,7 +270,39 @@ verifyConsistencyProof :: (ByteArrayAccess inp, HashAlgorithm ha)
                        -> Digest ha -- end
                        -> ConsistencyProof ha
                        -> Bool
-verifyConsistencyProof = undefined
+verifyConsistencyProof set firstHash secondHash (ConsistencyProof first second path)
+  | first == 0      = case path of
+      [c] -> secondHash == c
+      _   -> False
+  | first == second = null path && firstHash == secondHash
+  | otherwise       = case path' of
+      []   -> False
+      c:cs -> verify (untilNotSet (first - 1, second - 1)) c c cs -- fixme:cs
+  where
+    path'
+      | isPowerOf2 first = firstHash : path
+      | otherwise        = path
+    untilNotSet fsn@(fn,_)
+      | fn `testBit` 0 = untilNotSet $ shiftR1 fsn
+      | otherwise      = fsn
+    untilSet fsn@(fn,_)
+      | fn == 0        = fsn
+      | fn `testBit` 0 = fsn
+      | otherwise      = untilSet $ shiftR1 fsn
+    shiftR1 (x,y) = (x `shiftR` 1, y `shiftR` 1)
+    verify _     fr sr [] = fr == firstHash && sr == secondHash
+    verify (_,0) _ _ _    = error "verifyConsistencyProof:verify"
+    verify fsn@(fn,sn) fr sr (c:cs)
+      | fn `testBit` 0 || fn == sn = let fr' = hash2 set c fr
+                                         sr' = hash2 set c sr
+                                         fsn'
+                                          | not (fn `testBit` 0) = untilSet fsn
+                                          | otherwise           = fsn
+                                         fsn'' = shiftR1 fsn'
+                                     in verify fsn'' fr' sr' cs
+      | otherwise = let sr' = hash2 set sr c
+                        fsn' = shiftR1 fsn
+                    in verify fsn' fr sr' cs
 
 ----------------------------------------------------------------
 
