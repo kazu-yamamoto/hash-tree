@@ -74,6 +74,10 @@ data MerkleHashTrees inp ha = MerkleHashTrees {
     settings  :: !(Settings inp ha)
     -- | Getting the log size
   , size      :: !Int
+    -- index is size of HashTree
+    -- 0 for Empty
+    -- 1 for Leaf 0 0
+    -- 'size' for the last HashTree
   , hashtrees :: !(IntMap (HashTree inp ha))
   , indices   :: !(Map (Digest ha) Index)
   }
