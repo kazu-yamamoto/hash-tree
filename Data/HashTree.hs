@@ -20,6 +20,11 @@ module Data.HashTree (
   , InclusionProof
   , generateInclusionProof
   , verifyInclusionProof
+    -- * Consistency Proof
+  , ConsistencyProof
+  , Index
+  , generateConsistencyProof
+  , verifyConsistencyProof
   ) where
 
 import Data.HashTree.Internal

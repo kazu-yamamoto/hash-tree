@@ -13,6 +13,10 @@ module Data.HashTree.Internal (
   , InclusionProof(..)
   , generateInclusionProof
   , verifyInclusionProof
+  , ConsistencyProof(..)
+  , Index
+  , generateConsistencyProof
+  , verifyConsistencyProof
   ) where
 
 import Crypto.Hash
@@ -227,8 +231,42 @@ verifyInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify dsts
 
 ----------------------------------------------------------------
 
+data ConsistencyProof ha = ConsistencyProof !Index !Index ![Digest ha]
+                         deriving (Eq, Show)
+
+generateConsistencyProof :: Eq inp => Index -> Index -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
+generateConsistencyProof m n (MerkleHashTrees _ _ htdb _) = do
+    htm <- IntMap.lookup m htdb
+    htn <- IntMap.lookup n htdb
+    let digests = proof htm htn True
+    return $ ConsistencyProof m n digests
+  where
+    proof htm htn flag
+      | htm == htn = if flag then [] else [value htm]
+    proof htm@(Leaf _ _ _) (Node _ _ _ ln rn) flag
+                   = proof htm ln flag ++ [value rn]
+    proof htm@(Node _ _ midxr lm rm)  (Node _ _ nidxr ln rn) flag
+      | midxr < k  = proof htm ln flag ++ [value rn]
+      | otherwise  = proof rm rn False ++ [value lm]
+      where
+        k = maxPowerOf2 nidxr
+    proof _ _ _    = error "generateConsistencyProof:proof"
+
+verifyConsistencyProof :: (ByteArrayAccess inp, HashAlgorithm ha)
+                       => Settings inp ha
+                       -> Digest ha -- start
+                       -> Digest ha -- end
+                       -> ConsistencyProof ha
+                       -> Bool
+verifyConsistencyProof = undefined
+
+----------------------------------------------------------------
+
 width :: Int -> Int
 width x = finiteBitSize x - countLeadingZeros x
 
 isPowerOf2 :: Int -> Bool
 isPowerOf2 n = (n .&. (n - 1)) == 0
+
+maxPowerOf2 :: Int -> Int
+maxPowerOf2 n = 2 ^ (width n - 1)
