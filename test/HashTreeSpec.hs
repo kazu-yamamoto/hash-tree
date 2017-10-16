@@ -26,7 +26,7 @@ spec = do
         prop "creates a perfectly branched tree" $ \(Input bss) ->
             let bss' = nub bss
                 Just ht = currentHead $ fromList set bss'
-                ht' = fromList' set bss'
+                ht' = toHashTree set bss'
             in ht == ht'
     describe "verifyInclusionProof" $ do
         prop "can be verified for a good target" $ \(Input bss@(b:_)) ->

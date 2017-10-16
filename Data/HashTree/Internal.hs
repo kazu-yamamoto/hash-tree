@@ -8,7 +8,7 @@ module Data.HashTree.Internal (
   , currentHead
   , empty
   , fromList
-  , fromList'
+  , toHashTree
   , add
   , InclusionProof(..)
   , generateInclusionProof
@@ -158,10 +158,12 @@ add a mht@(MerkleHashTrees set siz htdb idb) =
 
 ----------------------------------------------------------------
 
-fromList' :: (ByteArrayAccess inp, HashAlgorithm ha)
-          => Settings inp ha -> [inp] -> HashTree inp ha
-fromList' set [] = Empty $ hash0 set -- not used
-fromList' set xs = ht
+-- | A simple algorithm to create a binary balanced tree. O(n log n)
+--   This is just for testing.
+toHashTree :: (ByteArrayAccess inp, HashAlgorithm ha)
+           => Settings inp ha -> [inp] -> HashTree inp ha
+toHashTree set [] = Empty $ hash0 set -- not used
+toHashTree set xs = ht
   where
     toLeaf = uncurry (leaf set)
     leaves = map toLeaf $ zip xs [0..]
