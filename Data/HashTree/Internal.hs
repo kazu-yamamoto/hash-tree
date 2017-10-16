@@ -261,7 +261,7 @@ generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
       where
         sizm = midxr - midxl + 1
         sizn = nidxr - nidxl + 1
-        k = maxPowerOf2 sizn
+        k = maxPowerOf2 (sizn - 1) -- e.g. if 8, take 4.
     prove htm htn _    = error $ "generateConsistencyProof:prove" ++ "{" ++ show htm ++ "} {"++ show htn ++ "}"
 
 verifyConsistencyProof :: (ByteArrayAccess inp, HashAlgorithm ha)
