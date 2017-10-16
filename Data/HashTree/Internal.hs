@@ -32,6 +32,9 @@ import qualified Data.Map.Strict as Map
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
 
+-- $setup
+-- >>> :set -XOverloadedStrings
+
 ----------------------------------------------------------------
 
 -- | Settings for Merkle Hash Trees.
@@ -217,6 +220,14 @@ generateInclusionProof inp (MerkleHashTrees set siz htdb idb) = do
     path _ _ = []
 
 -- | Verifying 'InclusionProof' at the client side.
+--
+-- >>> import Data.Maybe
+-- >>> let mht = fromList defaultSettings ["0","1","2","3","4","5","6"]
+-- >>> let target = "3"
+-- >>> let proof = fromJust $ generateInclusionProof target mht
+-- >>> let currentDigest = fromJust $ digest (size mht) mht
+-- >>> verifyInclusionProof defaultSettings target proof currentDigest
+-- True
 verifyInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
                      => Settings inp ha
                      -> inp               -- ^ The target
@@ -266,6 +277,16 @@ generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
     prove _ _ _    = error "generateConsistencyProof:prove"
 
 -- | Verifying 'ConsistencyProof' at the client side.
+--
+-- >>> import Data.Maybe
+-- >>> let mht = fromList defaultSettings ["0","1","2","3","4","5","6"]
+-- >>> let m = 3
+-- >>> let n = 7
+-- >>> let digestM = fromJust $ digest m mht
+-- >>> let digestN = fromJust $ digest n mht
+-- >>> let proof = fromJust $ generateConsistencyProof m n mht
+-- >>> verifyConsistencyProof defaultSettings digestM digestN proof
+-- True
 verifyConsistencyProof :: (ByteArrayAccess inp, HashAlgorithm ha)
                        => Settings inp ha
                        -> Digest ha -- start
