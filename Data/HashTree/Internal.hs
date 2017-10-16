@@ -238,7 +238,7 @@ verifyInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify dsts
 data ConsistencyProof ha = ConsistencyProof !Index !Index ![Digest ha]
                          deriving (Eq, Show)
 
-generateConsistencyProof :: (Show inp, Eq inp) => Index -> Index -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
+generateConsistencyProof :: Eq inp => Index -> Index -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
 generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
   | m < 0 || n < 0 = Nothing
   | m > n          = Nothing
@@ -255,14 +255,14 @@ generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
       | htm == htn = if flag then [] else [value htm]
     prove htm@(Leaf _ _ _) (Node _ _ _ ln rn) flag
                    = prove htm ln flag ++ [value rn]
-    prove htm@(Node _ midxl midxr lm rm)  (Node _ nidxl nidxr ln rn) flag
+    prove htm@(Node _ midxl midxr lm rm) (Node _ nidxl nidxr ln rn) flag
       | sizm <= k  = prove htm ln flag ++ [value rn]
       | otherwise  = prove rm rn False ++ [value lm]
       where
         sizm = midxr - midxl + 1
         sizn = nidxr - nidxl + 1
         k = maxPowerOf2 (sizn - 1) -- e.g. if 8, take 4.
-    prove htm htn _    = error $ "generateConsistencyProof:prove" ++ "{" ++ show htm ++ "} {"++ show htn ++ "}"
+    prove _ _ _    = error "generateConsistencyProof:prove"
 
 verifyConsistencyProof :: (ByteArrayAccess inp, HashAlgorithm ha)
                        => Settings inp ha
