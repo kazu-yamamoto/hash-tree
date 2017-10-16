@@ -216,7 +216,7 @@ generateInclusionProof inp (MerkleHashTrees set siz htdb idb) = do
       | otherwise   = value l : path m r
     path _ _ = []
 
--- | Verify 'InclusionProof' at the client side.
+-- | Verifying 'InclusionProof' at the client side.
 verifyInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
                      => Settings inp ha
                      -> inp               -- ^ The target
@@ -238,6 +238,7 @@ verifyInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify dsts
 data ConsistencyProof ha = ConsistencyProof !Index !Index ![Digest ha]
                          deriving (Eq, Show)
 
+-- | Generating 'ConsistencyProof' for the target at the server side.
 generateConsistencyProof :: Eq inp => Index -> Index -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
 generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
   | m < 0 || n < 0 = Nothing
@@ -264,6 +265,7 @@ generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
         k = maxPowerOf2 (sizn - 1) -- e.g. if 8, take 4.
     prove _ _ _    = error "generateConsistencyProof:prove"
 
+-- | Verifying 'ConsistencyProof' at the client side.
 verifyConsistencyProof :: (ByteArrayAccess inp, HashAlgorithm ha)
                        => Settings inp ha
                        -> Digest ha -- start
