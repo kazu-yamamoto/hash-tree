@@ -1,4 +1,5 @@
--- | Two-way (binary) Merkle Hash Trees.
+-- | Two-way (binary) Merkle Hash Trees which implements append-only logs and
+--   provides both inclusion proof and consistency proof.
 module Data.HashTree (
     -- * Settings
     Settings
