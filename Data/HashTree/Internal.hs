@@ -288,12 +288,11 @@ generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
 -- | Verifying 'ConsistencyProof' at the client side.
 --
 -- >>> import Data.Maybe
--- >>> let mht = fromList defaultSettings ["0","1","2","3","4","5","6"]
--- >>> let m = 3
--- >>> let n = 7
--- >>> let digestM = fromJust $ digest m mht
--- >>> let digestN = fromJust $ digest n mht
--- >>> let proof = fromJust $ generateConsistencyProof m n mht
+-- >>> let mht0 = fromList defaultSettings ["0","1","2","3"]
+-- >>> let (m, digestM) = info mht0
+-- >>> let mht1 = add "6" $ add "5" $ add "4" mht0
+-- >>> let (n, digestN) = info mht1
+-- >>> let proof = fromJust $ generateConsistencyProof m n mht1
 -- >>> verifyConsistencyProof defaultSettings digestM digestN proof
 -- True
 verifyConsistencyProof :: (ByteArrayAccess inp, HashAlgorithm ha)
