@@ -85,22 +85,22 @@ data MerkleHashTrees inp ha = MerkleHashTrees {
     -- 0 for Empty
     -- 1 for Leaf 0 0
     -- 'size' for the last HashTree
-  , hashtrees :: !(IntMap (HashTree inp ha))
+  , hashtrees :: !(IntMap (HashTree inp ha)) -- the Int key is TreeSize
   , indices   :: !(Map (Digest ha) Index)
   }
 
 -- | Getting the Merkle Tree Hash.
-digest :: Int -> MerkleHashTrees inp ha -> Maybe (Digest ha)
-digest i mht = case IntMap.lookup i (hashtrees mht) of
+digest :: TreeSize -> MerkleHashTrees inp ha -> Maybe (Digest ha)
+digest tsiz mht = case IntMap.lookup tsiz (hashtrees mht) of
     Nothing -> Nothing
     Just ht -> Just $ value ht
 
 currentHead :: MerkleHashTrees inp ha -> Maybe (HashTree inp ha)
-currentHead (MerkleHashTrees _ siz htdb _) = IntMap.lookup siz htdb
+currentHead (MerkleHashTrees _ tsiz htdb _) = IntMap.lookup tsiz htdb
 
 -- | Getting the root information of the Merkle Hash Tree.
 --   A pair of the current size and the current Merle Tree Hash is returned.
-info :: MerkleHashTrees inp ha -> (Int, Digest ha)
+info :: MerkleHashTrees inp ha -> (TreeSize, Digest ha)
 info mht = (siz, h)
   where
     siz = size mht
@@ -150,22 +150,22 @@ fromList set xs = foldl' (flip add) (empty set) xs
 -- | Adding (appending) an element. O(log n)
 add :: (ByteArrayAccess inp, HashAlgorithm ha)
      => inp -> MerkleHashTrees inp ha -> MerkleHashTrees inp ha
-add a mht@(MerkleHashTrees set siz htdb idb) =
+add a mht@(MerkleHashTrees set tsiz htdb idb) =
     case Map.lookup hx idb of
         Just _  -> mht
-        Nothing -> case IntMap.lookup siz htdb of
+        Nothing -> case IntMap.lookup tsiz htdb of
             Just ht -> let ht' = newht ht
-                           htdb' = IntMap.insert siz' ht' htdb
-                       in MerkleHashTrees set siz' htdb' idb'
+                           htdb' = IntMap.insert tsiz' ht' htdb
+                       in MerkleHashTrees set tsiz' htdb' idb'
             Nothing -> mht -- never reach
   where
-    siz' = siz + 1
+    tsiz' = tsiz + 1
     hx = hash1 set a
-    idb' = Map.insert hx siz idb
+    idb' = Map.insert hx tsiz idb
 
     newht ht = ins ht
       where
-        ix = siz
+        ix = tsiz
         x = Leaf hx ix a
 
         hash2' = hash2 set
@@ -215,16 +215,16 @@ pairing _       hts  = hts
 ----------------------------------------------------------------
 
 -- | The type for inclusion proof (aka audit proof).
-data InclusionProof ha = InclusionProof !Int !Index ![Digest ha]
+data InclusionProof ha = InclusionProof !TreeSize !Index ![Digest ha]
                        deriving (Eq, Show)
 
 -- | Generating 'InclusionProof' for the target at the server side.
 generateInclusionProof :: inp -> MerkleHashTrees inp ha -> Maybe (InclusionProof ha)
-generateInclusionProof inp (MerkleHashTrees set siz htdb idb) = do
-    ht <- IntMap.lookup siz htdb
+generateInclusionProof inp (MerkleHashTrees set tsiz htdb idb) = do
+    ht <- IntMap.lookup tsiz htdb
     i <- Map.lookup h idb
     let digests = reverse $ path i ht
-    return $ InclusionProof siz i digests
+    return $ InclusionProof tsiz i digests
   where
     h = hash1 set inp
     path m (Node _ _ _ l r)
