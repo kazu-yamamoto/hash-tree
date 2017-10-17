@@ -16,6 +16,7 @@ module Data.HashTree.Internal (
   , verifyInclusionProof
   , ConsistencyProof(..)
   , TreeSize
+  , Index
   , generateConsistencyProof
   , verifyConsistencyProof
   ) where

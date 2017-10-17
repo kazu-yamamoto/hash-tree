@@ -16,17 +16,18 @@ module Data.HashTree (
   , digest
     -- ** Related types
   , TreeSize
+  , Index
     -- ** Creating Merkle Hash Trees
   , empty
   , fromList
     -- ** Appending an element
   , add
     -- * Inclusion Proof
-  , InclusionProof
+  , InclusionProof(..)
   , generateInclusionProof
   , verifyInclusionProof
     -- * Consistency Proof
-  , ConsistencyProof
+  , ConsistencyProof(..)
   , generateConsistencyProof
   , verifyConsistencyProof
   ) where
