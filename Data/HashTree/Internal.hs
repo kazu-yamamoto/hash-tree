@@ -211,6 +211,7 @@ pairing _       hts  = hts
 
 ----------------------------------------------------------------
 
+-- | The type for inclusion proof (aka audit proof).
 data InclusionProof ha = InclusionProof !Int !Index ![Digest ha]
                        deriving (Eq, Show)
 
@@ -254,6 +255,7 @@ verifyInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify dsts
 
 ----------------------------------------------------------------
 
+-- | The type for consistency proof.
 data ConsistencyProof ha = ConsistencyProof !Index !Index ![Digest ha]
                          deriving (Eq, Show)
 
