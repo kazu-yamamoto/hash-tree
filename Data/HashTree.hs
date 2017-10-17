@@ -10,6 +10,7 @@ module Data.HashTree (
   , hash2
     -- * Merkle Hash Trees
   , MerkleHashTrees
+  , info
   , size
   , digest
     -- ** Creating Merkle Hash Trees

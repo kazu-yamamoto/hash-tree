@@ -5,6 +5,7 @@ module Data.HashTree.Internal (
   , defaultSettings
   , MerkleHashTrees(..)
   , digest
+  , info
   , currentHead
   , empty
   , fromList
@@ -93,6 +94,14 @@ digest i mht = case IntMap.lookup i (hashtrees mht) of
 
 currentHead :: MerkleHashTrees inp ha -> Maybe (HashTree inp ha)
 currentHead (MerkleHashTrees _ siz htdb _) = IntMap.lookup siz htdb
+
+-- | Getting the root information of the Merkle Hash Tree.
+--   A pair of the current size and the current Merle Tree Hash is returned.
+info :: MerkleHashTrees inp ha -> (Int, Digest ha)
+info mht = (siz, h)
+  where
+    siz = size mht
+    Just h = digest siz mht
 
 ----------------------------------------------------------------
 
