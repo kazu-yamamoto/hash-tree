@@ -5,7 +5,9 @@ Maintainer:             Kazu Yamamoto <kazu@iij.ad.jp>
 License:                BSD3
 License-File:           LICENSE
 Synopsis:               Merkle Hash Tree
-Description:            Purely functional Merkle hash tree
+Description:            Purely functional Merkle hash tree which
+                        implements appe nd-only logs and
+                        provides both inclusion proof and consistency proof.
 Category:               Data
 Cabal-Version:          >= 1.10
 Build-Type:             Simple
