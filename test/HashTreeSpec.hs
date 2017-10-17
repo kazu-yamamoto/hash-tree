@@ -34,22 +34,34 @@ spec = do
                 ht' = toHashTree set $ nub bss
             in ht == ht'
     describe "verifyInclusionProof" $ do
-        prop "can be verified for a good target" $ \(Input bss@(b:_)) ->
-            let mht = fromList set bss
-                proof = fromJust $ generateInclusionProof b mht
-                Just h = digest (size mht) mht
-            in verifyInclusionProof set b proof h
+        prop "can be verified for a good target" $ \(Input bss0) x0 y0 ->
+            let bss = nub bss0
+                mht = fromList set bss
+                len = length bss
+                x0' = adjust x0 len
+                y0' = adjust y0 len
+                (i,tsiz)
+                   | x0' < y0' = (x0',y0')
+                   | x0' > y0' = (y0',x0')
+                   | otherwise = (x0',y0'+1)
+                target = bss !! i
+                leafDigest = hash1 set target
+                proof = fromJust $ generateInclusionProof leafDigest tsiz mht
+                Just rootDigest = digest tsiz mht
+            in verifyInclusionProof set leafDigest rootDigest proof
     describe "verifyConsistencyProof" $ do
         prop "can be verified" $ \(Input bss) m0 n0 ->
             let mht = fromList set bss
                 siz = size mht
-                aj x b
-                  | x < 0     = negate x `mod` b
-                  | otherwise = x `mod` b
-                m0' = aj m0 siz
-                n0' = aj n0 siz
+                m0' = adjust m0 siz
+                n0' = adjust n0 siz
                 (m,n) = if m0' <= n0' then (m0',n0') else (n0',m0')
                 proof = fromJust $ generateConsistencyProof m n mht
                 Just dm = digest m mht
                 Just dn = digest n mht
             in verifyConsistencyProof set dm dn proof
+
+adjust :: Int -> Int -> Int
+adjust x b
+  | x < 0     = negate x `mod` b
+  | otherwise = x `mod` b

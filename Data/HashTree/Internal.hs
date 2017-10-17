@@ -224,18 +224,23 @@ pairing _       hts  = hts
 ----------------------------------------------------------------
 
 -- | The type for inclusion proof (aka audit proof).
-data InclusionProof ha = InclusionProof !TreeSize !Index ![Digest ha]
+data InclusionProof ha = InclusionProof !Index !TreeSize ![Digest ha]
                        deriving (Eq, Show)
 
 -- | Generating 'InclusionProof' for the target at the server side.
-generateInclusionProof :: inp -> MerkleHashTrees inp ha -> Maybe (InclusionProof ha)
-generateInclusionProof inp (MerkleHashTrees set tsiz htdb idb) = do
+generateInclusionProof :: Digest ha -- ^ The target hash (leaf digest)
+                       -> TreeSize  -- ^ The tree size
+                       -> MerkleHashTrees inp ha
+                       -> Maybe (InclusionProof ha)
+generateInclusionProof h tsiz (MerkleHashTrees _ _ htdb idb) = do
     ht <- IntMap.lookup tsiz htdb
     i <- Map.lookup h idb
-    let digests = reverse $ path i ht
-    return $ InclusionProof tsiz i digests
+    if i < tsiz then do
+        let digests = reverse $ path i ht
+        Just $ InclusionProof i tsiz digests
+      else
+        Nothing
   where
-    h = hash1 set inp
     path m (Node _ _ _ l r)
       | m <= idxr l = value r : path m l
       | otherwise   = value l : path m r
@@ -243,27 +248,33 @@ generateInclusionProof inp (MerkleHashTrees set tsiz htdb idb) = do
 
 -- | Verifying 'InclusionProof' at the client side.
 --
--- >>> let mht = fromList defaultSettings ["0","1","2","3","4","5","6"]
 -- >>> let target = "3"
--- >>> let Just proof = generateInclusionProof target mht
--- >>> let Just currentDigest = digest (size mht) mht -- info can be used, too
--- >>> verifyInclusionProof defaultSettings target proof currentDigest
+-- >>> let mht = fromList defaultSettings ["0","1","2",target,"4","5","6"]
+-- >>> let treeSize = 5
+-- >>> let leafDigest = hash1 defaultSettings target
+-- >>> let Just proof = generateInclusionProof leafDigest treeSize mht
+-- >>> let Just rootDigest = digest treeSize mht
+-- >>> verifyInclusionProof defaultSettings leafDigest rootDigest proof
 -- True
 verifyInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
                      => Settings inp ha
-                     -> inp               -- ^ The target
+                     -> Digest ha         -- ^ The target hash (leaf digest)
+                     -> Digest ha         -- ^ Merkle Tree Hash (root digest) for the tree size
                      -> InclusionProof ha -- ^ InclusionProof of the target
-                     -> Digest ha         -- ^ Merkle Tree Hash for the target size
                      -> Bool
-verifyInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify dsts dst0 idx0 == rootMth
+verifyInclusionProof set leafDigest rootDigest (InclusionProof idx tsiz pps)
+  | idx >= tsiz = False
+  | otherwise   = verify (idx,tsiz - 1) leafDigest pps
   where
-    dst0 = hash1 set inp
-    idx0 = idx `shiftR` (width siz - length dsts)
-    verify []     d0 _ = d0
-    verify (d:ds) d0 i = verify ds d' (i `unsafeShiftR` 1)
-      where
-        d' = if testBit i 0 then hash2 set d d0
-                            else hash2 set d0 d
+    verify (_,sn) r []             = sn == 0 && r == rootDigest
+    verify (_,0)  _ _              = False
+    verify fsn@(fn,sn) r (p:ps)
+      | fn `testBit` 0 || fn == sn = let r' = hash2 set p r
+                                         fsn' = shiftR1 $ untilSet fsn
+                                     in verify fsn' r' ps
+      | otherwise                  = let r' = hash2 set r p
+                                         fsn' = shiftR1 fsn
+                                     in verify fsn' r' ps
 
 ----------------------------------------------------------------
 
@@ -326,14 +337,6 @@ verifyConsistencyProof set firstHash secondHash (ConsistencyProof first second p
     path'
       | isPowerOf2 first = firstHash : path
       | otherwise        = path
-    untilNotSet fsn@(fn,_)
-      | fn `testBit` 0 = untilNotSet $ shiftR1 fsn
-      | otherwise      = fsn
-    untilSet fsn@(fn,_)
-      | fn == 0        = fsn
-      | fn `testBit` 0 = fsn
-      | otherwise      = untilSet $ shiftR1 fsn
-    shiftR1 (x,y) = (x `shiftR` 1, y `shiftR` 1)
     verify _     fr sr [] = fr == firstHash && sr == secondHash
     verify (_,0) _ _ _    = error "verifyConsistencyProof:verify"
     verify fsn@(fn,sn) fr sr (c:cs)
@@ -358,3 +361,17 @@ isPowerOf2 n = (n .&. (n - 1)) == 0
 
 maxPowerOf2 :: Int -> Int
 maxPowerOf2 n = 2 ^ (width n - 1)
+
+shiftR1 :: (Int,Int) -> (Int,Int)
+shiftR1 (x,y) = (x `unsafeShiftR` 1, y `unsafeShiftR` 1)
+
+untilNotSet :: (Int,Int) -> (Int,Int)
+untilNotSet fsn@(fn,_)
+  | fn `testBit` 0 = untilNotSet $ shiftR1 fsn
+  | otherwise      = fsn
+
+untilSet :: (Int,Int) -> (Int,Int)
+untilSet fsn@(fn,_)
+  | fn == 0        = fsn
+  | fn `testBit` 0 = fsn
+  | otherwise      = untilSet $ shiftR1 fsn
