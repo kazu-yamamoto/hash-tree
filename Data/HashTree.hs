@@ -4,15 +4,18 @@ module Data.HashTree (
     -- * Settings
     Settings
   , defaultSettings
-    -- ** Settings accessors
+    -- ** Accessors
   , hash0
   , hash1
   , hash2
     -- * Merkle Hash Trees
   , MerkleHashTrees
+    -- ** Accessors
   , info
   , size
   , digest
+    -- ** Related types
+  , TreeSize
     -- ** Creating Merkle Hash Trees
   , empty
   , fromList
@@ -24,7 +27,6 @@ module Data.HashTree (
   , verifyInclusionProof
     -- * Consistency Proof
   , ConsistencyProof
-  , Index
   , generateConsistencyProof
   , verifyConsistencyProof
   ) where

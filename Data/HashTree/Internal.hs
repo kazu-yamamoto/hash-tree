@@ -15,7 +15,7 @@ module Data.HashTree.Internal (
   , generateInclusionProof
   , verifyInclusionProof
   , ConsistencyProof(..)
-  , Index
+  , TreeSize
   , generateConsistencyProof
   , verifyConsistencyProof
   ) where
@@ -71,13 +71,16 @@ defaultSettings = Settings {
 -- | The position of the target element from 0.
 type Index = Int
 
+-- | The size of hash tree.
+type TreeSize = Int
+
 -- | The data type for Merkle Hash Trees.
 --   The first parameter is input data type.
 --   The second one is digest data type.
 data MerkleHashTrees inp ha = MerkleHashTrees {
     settings  :: !(Settings inp ha)
     -- | Getting the log size
-  , size      :: !Int
+  , size      :: !TreeSize
     -- index is size of HashTree
     -- 0 for Empty
     -- 1 for Leaf 0 0
@@ -256,11 +259,11 @@ verifyInclusionProof set inp (InclusionProof siz idx dsts) rootMth = verify dsts
 ----------------------------------------------------------------
 
 -- | The type for consistency proof.
-data ConsistencyProof ha = ConsistencyProof !Index !Index ![Digest ha]
+data ConsistencyProof ha = ConsistencyProof !TreeSize !TreeSize ![Digest ha]
                          deriving (Eq, Show)
 
 -- | Generating 'ConsistencyProof' for the target at the server side.
-generateConsistencyProof :: Index -> Index -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
+generateConsistencyProof :: TreeSize -> TreeSize -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
 generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
   | m < 0 || n < 0 = Nothing
   | m > n          = Nothing
