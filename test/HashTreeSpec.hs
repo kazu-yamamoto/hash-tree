@@ -22,6 +22,12 @@ instance Arbitrary Input where
 spec :: Spec
 spec = do
     let set = defaultSettings
+    describe "info" $ do
+        prop "The root hash of 1-size tree is equal to the leaf hash" $ \bs ->
+            let mht = add (bs :: ByteString) $ empty set
+                h1 = snd $ info mht
+                h2 = hash1 set bs
+            in h1 == h2
     describe "fromList" $ do
         prop "creates a perfectly branched tree" $ \(Input bss) ->
             let Just ht = currentHead $ fromList set bss
