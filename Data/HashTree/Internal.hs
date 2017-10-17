@@ -115,6 +115,9 @@ data HashTree inp ha =
   deriving (Eq, Show)
 
 -- | Creating an empty 'MerkleHashTrees'.
+--
+-- >>> info $ empty defaultSettings
+-- (0,e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855)
 empty :: Settings inp ha -> MerkleHashTrees inp ha
 empty set = MerkleHashTrees {
     settings  = set
@@ -143,11 +146,17 @@ idxr (Empty _)        = error "idxr"
 ----------------------------------------------------------------
 
 -- | Creating a Merkle Hash Tree from a list of elements. O(n log n)
+--
+-- >>> info $ fromList defaultSettings ["0","1","2"]
+-- (3,725d5230db68f557470dc35f1d8865813acd7ebb07ad152774141decbae71327)
 fromList :: (ByteArrayAccess inp, HashAlgorithm ha)
          => Settings inp ha -> [inp] -> MerkleHashTrees inp ha
 fromList set xs = foldl' (flip add) (empty set) xs
 
 -- | Adding (appending) an element. O(log n)
+--
+-- >>> info $ add "1" $ empty defaultSettings
+-- (1,2215e8ac4e2b871c2a48189e79738c956c081e23ac2f2415bf77da199dfd920c)
 add :: (ByteArrayAccess inp, HashAlgorithm ha)
      => inp -> MerkleHashTrees inp ha -> MerkleHashTrees inp ha
 add a mht@(MerkleHashTrees set tsiz htdb idb) =
