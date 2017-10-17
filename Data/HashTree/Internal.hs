@@ -260,7 +260,7 @@ data ConsistencyProof ha = ConsistencyProof !Index !Index ![Digest ha]
                          deriving (Eq, Show)
 
 -- | Generating 'ConsistencyProof' for the target at the server side.
-generateConsistencyProof :: Eq inp => Index -> Index -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
+generateConsistencyProof :: Index -> Index -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
 generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
   | m < 0 || n < 0 = Nothing
   | m > n          = Nothing
@@ -274,7 +274,8 @@ generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
       return $ ConsistencyProof m n digests
   where
     prove htm htn flag
-      | htm == htn = if flag then [] else [value htm]
+      | idxl htm == idxl htn && idxr htm == idxr htn
+                   = if flag then [] else [value htm]
     prove htm@(Leaf _ _ _) (Node _ _ _ ln rn) flag
                    = prove htm ln flag ++ [value rn]
     prove htm@(Node _ midxl midxr lm rm) (Node _ nidxl nidxr ln rn) flag
