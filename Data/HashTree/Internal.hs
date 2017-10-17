@@ -230,11 +230,10 @@ generateInclusionProof inp (MerkleHashTrees set siz htdb idb) = do
 
 -- | Verifying 'InclusionProof' at the client side.
 --
--- >>> import Data.Maybe
 -- >>> let mht = fromList defaultSettings ["0","1","2","3","4","5","6"]
 -- >>> let target = "3"
--- >>> let proof = fromJust $ generateInclusionProof target mht
--- >>> let currentDigest = fromJust $ digest (size mht) mht
+-- >>> let Just proof = generateInclusionProof target mht
+-- >>> let Just currentDigest = digest (size mht) mht -- info can be used, too
 -- >>> verifyInclusionProof defaultSettings target proof currentDigest
 -- True
 verifyInclusionProof :: (ByteArrayAccess inp, HashAlgorithm ha)
@@ -287,12 +286,11 @@ generateConsistencyProof m n (MerkleHashTrees _ _ htdb _)
 
 -- | Verifying 'ConsistencyProof' at the client side.
 --
--- >>> import Data.Maybe
 -- >>> let mht0 = fromList defaultSettings ["0","1","2","3"]
 -- >>> let (m, digestM) = info mht0
 -- >>> let mht1 = add "6" $ add "5" $ add "4" mht0
 -- >>> let (n, digestN) = info mht1
--- >>> let proof = fromJust $ generateConsistencyProof m n mht1
+-- >>> let Just proof = generateConsistencyProof m n mht1
 -- >>> verifyConsistencyProof defaultSettings digestM digestN proof
 -- True
 verifyConsistencyProof :: (ByteArrayAccess inp, HashAlgorithm ha)
