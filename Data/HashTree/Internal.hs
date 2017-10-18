@@ -49,9 +49,9 @@ import qualified Data.IntMap.Strict as IntMap
 data Settings inp ha = Settings {
     -- | A hash value for non input element.
     hash0 :: Digest ha
-    -- | A hash function for one input element.
+    -- | A hash function for one input element to calculate the leaf digest.
   , hash1 :: inp -> Digest ha
-    -- | A hash function for two input elements.
+    -- | A hash function for two input elements to calculate the internal digest.
   , hash2 :: Digest ha -> Digest ha -> Digest ha
   }
 
