@@ -23,8 +23,8 @@ module Data.HashTree.Internal (
   , verifyConsistencyProof
   ) where
 
-import Crypto.Hash
-import Data.Bits
+import Crypto.Hash (Digest, SHA256, HashAlgorithm, hash)
+import Data.Bits (testBit, finiteBitSize, countLeadingZeros, (.&.), unsafeShiftR)
 import Data.ByteArray (ByteArrayAccess)
 import qualified Data.ByteArray as BA
 import Data.ByteString (ByteString)
