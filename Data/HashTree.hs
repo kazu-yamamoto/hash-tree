@@ -24,11 +24,23 @@ module Data.HashTree (
     -- ** Appending an element
   , add
     -- * Inclusion Proof
-  , InclusionProof(..)
+  , InclusionProof
+  , defaultInclusionProof
+    -- ** Accessors
+  , leafIndex
+  , treeSize
+  , inclusion
+    -- ** Proof and verification
   , generateInclusionProof
   , verifyInclusionProof
     -- * Consistency Proof
-  , ConsistencyProof(..)
+  , ConsistencyProof
+  , defaultConsistencyProof
+    -- ** Accessors
+  , firstTreeSize
+  , secondTreeSize
+  , consistency
+    -- ** Proof and verification
   , generateConsistencyProof
   , verifyConsistencyProof
   ) where

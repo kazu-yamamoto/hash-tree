@@ -12,9 +12,11 @@ module Data.HashTree.Internal (
   , toHashTree
   , add
   , InclusionProof(..)
+  , defaultInclusionProof
   , generateInclusionProof
   , verifyInclusionProof
   , ConsistencyProof(..)
+  , defaultConsistencyProof
   , TreeSize
   , Index
   , generateConsistencyProof
@@ -225,8 +227,22 @@ pairing _       hts  = hts
 ----------------------------------------------------------------
 
 -- | The type for inclusion proof (aka audit proof).
-data InclusionProof ha = InclusionProof !Index !TreeSize ![Digest ha]
-                       deriving (Eq, Show)
+data InclusionProof ha = InclusionProof {
+    -- | The index for the target.
+    leafIndex :: !Index
+    -- | The hash tree size.
+  , treeSize  :: !TreeSize
+    -- | A list of digest for inclusion.
+  , inclusion :: ![Digest ha]
+  } deriving (Eq, Show)
+
+-- | The default value for 'InclusionProof' just to create a new value.
+defaultInclusionProof :: InclusionProof ha
+defaultInclusionProof = InclusionProof {
+    leafIndex = 0
+  , treeSize  = 1
+  , inclusion = []
+  }
 
 -- | Generating 'InclusionProof' for the target at the server side.
 generateInclusionProof :: Digest ha -- ^ The target hash (leaf digest)
@@ -280,8 +296,22 @@ verifyInclusionProof set leafDigest rootDigest (InclusionProof idx tsiz pps)
 ----------------------------------------------------------------
 
 -- | The type for consistency proof.
-data ConsistencyProof ha = ConsistencyProof !TreeSize !TreeSize ![Digest ha]
-                         deriving (Eq, Show)
+data ConsistencyProof ha = ConsistencyProof {
+    -- | The first hash tree size.
+    firstTreeSize :: !TreeSize
+    -- | The second hash tree size.
+  , secondTreeSize :: !TreeSize
+    -- | A list of digest for consistency.
+  , consistency :: ![Digest ha]
+  } deriving (Eq, Show)
+
+-- | The default value for 'ConsistencyProof' just to create a new value.
+defaultConsistencyProof :: ConsistencyProof ha
+defaultConsistencyProof = ConsistencyProof {
+    firstTreeSize = 1
+  , secondTreeSize = 2
+  , consistency = []
+  }
 
 -- | Generating 'ConsistencyProof' for the target at the server side.
 generateConsistencyProof :: TreeSize -> TreeSize -> MerkleHashTrees inp ha -> Maybe (ConsistencyProof ha)
