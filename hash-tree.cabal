@@ -20,7 +20,7 @@ Library
   Build-Depends:        base >= 4 && < 5
                       , bytestring
                       , containers
-                      , cryptonite
+                      , crypton
                       , memory
 
 Test-Suite spec
@@ -30,13 +30,14 @@ Test-Suite spec
   Ghc-Options:          -Wall
   Main-Is:              Spec.hs
   Other-Modules:        HashTreeSpec
+                        Data.HashTree
                         Data.HashTree.Internal
   Build-Depends:        base >= 4 && < 5
                       , QuickCheck
                       , bytestring
                       , base64-bytestring
                       , containers
-                      , cryptonite
+                      , crypton
                       , hspec
                       , memory
 
