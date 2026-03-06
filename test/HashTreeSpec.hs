@@ -1,5 +1,5 @@
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module HashTreeSpec where
 
@@ -16,8 +16,7 @@ import Test.Hspec
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
-
-newtype Input = Input [ByteString] deriving Show -- non empty list
+newtype Input = Input [ByteString] deriving (Show) -- non empty list
 
 instance Arbitrary ByteString where
     arbitrary = BS.pack <$> listOf arbitrary -- Gen Word8
@@ -33,12 +32,12 @@ spec = do
             let mht = add (bs :: ByteString) $ empty set
                 h1 = snd $ info mht
                 h2 = hash1 set bs
-            in h1 == h2
+             in h1 == h2
     describe "fromList" $ do
         prop "create a perfectly branched tree" $ \(Input bss) ->
             let Just ht = currentHead $ fromList set bss
                 ht' = toHashTree set $ nub bss
-            in ht == ht'
+             in ht == ht'
     describe "verifyInclusionProof" $ do
         it "can verify the certificate transparency" $
             verifyInclusionProof set dl d2 iProof `shouldBe` True
@@ -48,15 +47,15 @@ spec = do
                 len = length bss
                 x0' = adjust x0 len
                 y0' = adjust y0 len
-                (i,tsiz)
-                   | x0' < y0' = (x0',y0')
-                   | x0' > y0' = (y0',x0')
-                   | otherwise = (x0',y0'+1)
+                (i, tsiz)
+                    | x0' < y0' = (x0', y0')
+                    | x0' > y0' = (y0', x0')
+                    | otherwise = (x0', y0' + 1)
                 target = bss !! i
                 leafDigest = hash1 set target
                 proof = fromJust $ generateInclusionProof leafDigest tsiz mht
                 Just rootDigest = digest tsiz mht
-            in verifyInclusionProof set leafDigest rootDigest proof
+             in verifyInclusionProof set leafDigest rootDigest proof
     describe "verifyConsistencyProof" $ do
         it "can verify the certificate transparency" $
             verifyConsistencyProof set d1 d2 cProof `shouldBe` True
@@ -65,23 +64,22 @@ spec = do
                 siz = size mht
                 m0' = adjust m0 siz
                 n0' = adjust n0 siz
-                (m,n) = if m0' <= n0' then (m0',n0') else (n0',m0')
+                (m, n) = if m0' <= n0' then (m0', n0') else (n0', m0')
                 proof = fromJust $ generateConsistencyProof m n mht
                 Just dm = digest m mht
                 Just dn = digest n mht
-            in verifyConsistencyProof set dm dn proof
+             in verifyConsistencyProof set dm dn proof
 
 adjust :: Int -> Int -> Int
 adjust x b
-  | x < 0     = negate x `mod` b
-  | otherwise = x `mod` b
+    | x < 0 = negate x `mod` b
+    | otherwise = x `mod` b
 
 toDigest :: ByteString -> Digest SHA256
 toDigest x = d
   where
     Right r = decode x
     Just d = digestFromByteString r
-
 
 {-
 % wget https://ct.googleapis.com/icarus/ct/v1/get-sth
@@ -104,31 +102,32 @@ d2 = toDigest "jhnkzC7e95jLNBJSiQRnuH2sXYfpY6sASO3ezfUBU0w="
 cProof :: ConsistencyProof SHA256
 cProof = ConsistencyProof 129596132 129721434 cs
   where
-    bs = ["5mrKRX9GRLriSIAtkX0kdvlnjt/f+P0vTrhmzOdhnzs="
-         ,"VEqL3Z55VZTVRp45WX7gTdcwxOorltn+uCQpHjv9rjE="
-         ,"2Euj4VXixjEAGj9p23OMo+ciB1tQ2KXH97TkWgcZLpI="
-         ,"rG0l6AHdk3TRkgAnwTK1Ys5kU7uuKRkMQSkrES0ocj0="
-         ,"JSxii5BAGCuwifRNIgIsarVA/aSC/QJNv4kfT9zii3Y="
-         ,"WPaErDHN/lYCuv8TsvosmAsIDbEOfPNZ/LxqLvuQcdY="
-         ,"HjN1fCoS6OYw8VH+DAcQPQkCjksWljkvr3AJiZTsi6Y="
-         ,"liuu+DeQohOzAyQadR3imE0SLo8pSsv9K0Y9f1dGrwA="
-         ,"oUQV+oip0wozcwv4mmMv4MrP545ugwXDIMU6HkZrfl0="
-         ,"V9BPc7aq1Sq1XwFV3gMx7/9Wv+8l/81S5Gb+bDriRZE="
-         ,"h3PJZDxVUsGMPBMEaJsQnqAVjlpuxUPGAUfYCY6TkWY="
-         ,"Rj09QnLzZ2MmyKjJYkcSO8Ko6lGhgwrnOydn+RdHdeI="
-         ,"Dc7oYAljc9VEYI8JuvYVyJtTHP8uW7igIKVqnWXgvFs="
-         ,"tJfBVa+YE0GK8T1L74hkkGmT3QO+mznMf+XrKnS3YOE="
-         ,"V9uRJUhCpCMwss1i4c85X5ceJnNePXdjAVrxtU6EezY="
-         ,"nf6Yq8xIs56hgor/mk30dvpaUO1/1w+MUlz8thiEb3o="
-         ,"SEVW3kh8HQ9Za+LjCoGaAkbbUfYmiwNs3SDasWKS6xo="
-         ,"96r7XxdWTPAZSygfov9mTTd4Gs6chZfdkznd8HAmzKc="
-         ,"t6OBvH84uFTwEubekO8rdcv+AlqPcpuZX9pwLYopKGg="
-         ,"nl6nrmkzk5qSYBiUHN609SD8IH3HuTPYR6r1YWKtWag="
-         ,"NbPA38XBZUXC5ca/cNcU/mNhq31qg2okTS3kJdptnxg="
-         ,"Ur4mOpiyDl1Zq/MH/SGszUlBP7jmOfupNVodMT6Mg2M="
-         ,"LUTvZyrtuEoSL7PNqR2Iv2FbcbtI5lQrq5/97sMFIsU="
-         ,"Bh+FIkHuIdFAcvCYOTlkKMxR15aDaaT9UlUsrCeuLUY="
-         ]
+    bs =
+        [ "5mrKRX9GRLriSIAtkX0kdvlnjt/f+P0vTrhmzOdhnzs="
+        , "VEqL3Z55VZTVRp45WX7gTdcwxOorltn+uCQpHjv9rjE="
+        , "2Euj4VXixjEAGj9p23OMo+ciB1tQ2KXH97TkWgcZLpI="
+        , "rG0l6AHdk3TRkgAnwTK1Ys5kU7uuKRkMQSkrES0ocj0="
+        , "JSxii5BAGCuwifRNIgIsarVA/aSC/QJNv4kfT9zii3Y="
+        , "WPaErDHN/lYCuv8TsvosmAsIDbEOfPNZ/LxqLvuQcdY="
+        , "HjN1fCoS6OYw8VH+DAcQPQkCjksWljkvr3AJiZTsi6Y="
+        , "liuu+DeQohOzAyQadR3imE0SLo8pSsv9K0Y9f1dGrwA="
+        , "oUQV+oip0wozcwv4mmMv4MrP545ugwXDIMU6HkZrfl0="
+        , "V9BPc7aq1Sq1XwFV3gMx7/9Wv+8l/81S5Gb+bDriRZE="
+        , "h3PJZDxVUsGMPBMEaJsQnqAVjlpuxUPGAUfYCY6TkWY="
+        , "Rj09QnLzZ2MmyKjJYkcSO8Ko6lGhgwrnOydn+RdHdeI="
+        , "Dc7oYAljc9VEYI8JuvYVyJtTHP8uW7igIKVqnWXgvFs="
+        , "tJfBVa+YE0GK8T1L74hkkGmT3QO+mznMf+XrKnS3YOE="
+        , "V9uRJUhCpCMwss1i4c85X5ceJnNePXdjAVrxtU6EezY="
+        , "nf6Yq8xIs56hgor/mk30dvpaUO1/1w+MUlz8thiEb3o="
+        , "SEVW3kh8HQ9Za+LjCoGaAkbbUfYmiwNs3SDasWKS6xo="
+        , "96r7XxdWTPAZSygfov9mTTd4Gs6chZfdkznd8HAmzKc="
+        , "t6OBvH84uFTwEubekO8rdcv+AlqPcpuZX9pwLYopKGg="
+        , "nl6nrmkzk5qSYBiUHN609SD8IH3HuTPYR6r1YWKtWag="
+        , "NbPA38XBZUXC5ca/cNcU/mNhq31qg2okTS3kJdptnxg="
+        , "Ur4mOpiyDl1Zq/MH/SGszUlBP7jmOfupNVodMT6Mg2M="
+        , "LUTvZyrtuEoSL7PNqR2Iv2FbcbtI5lQrq5/97sMFIsU="
+        , "Bh+FIkHuIdFAcvCYOTlkKMxR15aDaaT9UlUsrCeuLUY="
+        ]
     cs = map toDigest bs
 
 {-
@@ -139,10 +138,40 @@ cProof = ConsistencyProof 129596132 129721434 cs
 dl :: Digest SHA256
 dl = hash1 defaultSettings r
   where
-   Right r = decode "AAAAAAFexROk9wAAAAUdMIIFGTCCBAGgAwIBAgISBC/2U32dBHf/8H9aIod2qqPFMA0GCSqGSIb3DQEBCwUAMEoxCzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1MZXQncyBFbmNyeXB0MSMwIQYDVQQDExpMZXQncyBFbmNyeXB0IEF1dGhvcml0eSBYMzAeFw0xNzA5MjcxOTQzMDBaFw0xNzEyMjYxOTQzMDBaMBsxGTAXBgNVBAMTEGdlbS1qZXdlbGVycy5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDB61H4Kvny8rX0gBuvPciX9VpPzfkdYHjRwmZLU3uj3awfN+4qouO7ipz9Cyz1saCI53NXisHr3lttxAF1ISnidvywgRyaO9G0BVAn6Tl5zarOhwrf56wopfyEGaHfpyO8dCV5nfNWM99gbmrcJgWqs5/7Np9L+Y0ZMah751X6oZsJqKSs6FCUbAtyeAhXBQMuSOqkd85nObSpnf2W0CAfWYy66VPbDL8OAhq0A/3U+gh9ThWCAPPn9pVghazBKsSL+c1KW84xsXuHWkkgLjJ3f/oL9FPTzNBfqYzzeuAVAEwazYXPyEu5SlbdqzDi1Lesp0+2yoMO9h7MWy9Mom05AgMBAAGjggImMIICIjAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFDQaIW5tEaFbKN9qRmVdZEk2eB4GMB8GA1UdIwQYMBaAFKhKamMEfd265tE5t6ZFZe/zqOyhMG8GCCsGAQUFBwEBBGMwYTAuBggrBgEFBQcwAYYiaHR0cDovL29jc3AuaW50LXgzLmxldHNlbmNyeXB0Lm9yZzAvBggrBgEFBQcwAoYjaHR0cDovL2NlcnQuaW50LXgzLmxldHNlbmNyeXB0Lm9yZy8wMQYDVR0RBCowKIIQZ2VtLWpld2VsZXJzLmNvbYIUd3d3LmdlbS1qZXdlbGVycy5jb20wgf4GA1UdIASB9jCB8zAIBgZngQwBAgEwgeYGCysGAQQBgt8TAQEBMIHWMCYGCCsGAQUFBwIBFhpodHRwOi8vY3BzLmxldHNlbmNyeXB0Lm9yZzCBqwYIKwYBBQUHAgIwgZ4MgZtUaGlzIENlcnRpZmljYXRlIG1heSBvbmx5IGJlIHJlbGllZCB1cG9uIGJ5IFJlbHlpbmcgUGFydGllcyBhbmQgb25seSBpbiBhY2NvcmRhbmNlIHdpdGggdGhlIENlcnRpZmljYXRlIFBvbGljeSBmb3VuZCBhdCBodHRwczovL2xldHNlbmNyeXB0Lm9yZy9yZXBvc2l0b3J5LzANBgkqhkiG9w0BAQsFAAOCAQEAMMIZaoRMUdLpIyc7TmFmjz8h9q24xnwY04J61CALDVV8c8IjzRwuheqcCzOmBAfI4ejBnAb3wxIYIq/FlYmWbLHEdpOviPFgyV6uskNGGAyEWjU+ah3E9NXxJ2+/h/GmDOLk3D6aXeLyFpZr1nAhl9+Sr+Gj/gWijiAhpKKT/al73u4ZG8exhsRlfTr84Mtgn29NwolMAQ5anMuLgk3d7YTOpsi602vQTyEAj5G7SUryBvf+lYhDvyZwLkbEqaQnuUvHu2uLGbtRb002CAptZeqTLQ84hIjS1JJ5YZgdEtPlbUqduuR6CB3nIA6cKdLKyoTw3Yxwh9Xeowe6OEVEIwAA"
+    Right r =
+        decode
+            "AAAAAAFexROk9wAAAAUdMIIFGTCCBAGgAwIBAgISBC/2U32dBHf/8H9aIod2qqPFMA0GCSqGSIb3DQEBCwUAMEoxCzAJBgNVBAYTAlVTMRYwFAYDVQQKEw1MZXQncyBFbmNyeXB0MSMwIQYDVQQDExpMZXQncyBFbmNyeXB0IEF1dGhvcml0eSBYMzAeFw0xNzA5MjcxOTQzMDBaFw0xNzEyMjYxOTQzMDBaMBsxGTAXBgNVBAMTEGdlbS1qZXdlbGVycy5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDB61H4Kvny8rX0gBuvPciX9VpPzfkdYHjRwmZLU3uj3awfN+4qouO7ipz9Cyz1saCI53NXisHr3lttxAF1ISnidvywgRyaO9G0BVAn6Tl5zarOhwrf56wopfyEGaHfpyO8dCV5nfNWM99gbmrcJgWqs5/7Np9L+Y0ZMah751X6oZsJqKSs6FCUbAtyeAhXBQMuSOqkd85nObSpnf2W0CAfWYy66VPbDL8OAhq0A/3U+gh9ThWCAPPn9pVghazBKsSL+c1KW84xsXuHWkkgLjJ3f/oL9FPTzNBfqYzzeuAVAEwazYXPyEu5SlbdqzDi1Lesp0+2yoMO9h7MWy9Mom05AgMBAAGjggImMIICIjAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwEGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHQYDVR0OBBYEFDQaIW5tEaFbKN9qRmVdZEk2eB4GMB8GA1UdIwQYMBaAFKhKamMEfd265tE5t6ZFZe/zqOyhMG8GCCsGAQUFBwEBBGMwYTAuBggrBgEFBQcwAYYiaHR0cDovL29jc3AuaW50LXgzLmxldHNlbmNyeXB0Lm9yZzAvBggrBgEFBQcwAoYjaHR0cDovL2NlcnQuaW50LXgzLmxldHNlbmNyeXB0Lm9yZy8wMQYDVR0RBCowKIIQZ2VtLWpld2VsZXJzLmNvbYIUd3d3LmdlbS1qZXdlbGVycy5jb20wgf4GA1UdIASB9jCB8zAIBgZngQwBAgEwgeYGCysGAQQBgt8TAQEBMIHWMCYGCCsGAQUFBwIBFhpodHRwOi8vY3BzLmxldHNlbmNyeXB0Lm9yZzCBqwYIKwYBBQUHAgIwgZ4MgZtUaGlzIENlcnRpZmljYXRlIG1heSBvbmx5IGJlIHJlbGllZCB1cG9uIGJ5IFJlbHlpbmcgUGFydGllcyBhbmQgb25seSBpbiBhY2NvcmRhbmNlIHdpdGggdGhlIENlcnRpZmljYXRlIFBvbGljeSBmb3VuZCBhdCBodHRwczovL2xldHNlbmNyeXB0Lm9yZy9yZXBvc2l0b3J5LzANBgkqhkiG9w0BAQsFAAOCAQEAMMIZaoRMUdLpIyc7TmFmjz8h9q24xnwY04J61CALDVV8c8IjzRwuheqcCzOmBAfI4ejBnAb3wxIYIq/FlYmWbLHEdpOviPFgyV6uskNGGAyEWjU+ah3E9NXxJ2+/h/GmDOLk3D6aXeLyFpZr1nAhl9+Sr+Gj/gWijiAhpKKT/al73u4ZG8exhsRlfTr84Mtgn29NwolMAQ5anMuLgk3d7YTOpsi602vQTyEAj5G7SUryBvf+lYhDvyZwLkbEqaQnuUvHu2uLGbtRb002CAptZeqTLQ84hIjS1JJ5YZgdEtPlbUqduuR6CB3nIA6cKdLKyoTw3Yxwh9Xeowe6OEVEIwAA"
 
 iProof :: InclusionProof SHA256
 iProof = InclusionProof 120000000 129721434 is
   where
-    bs = ["xNXDvcL4JYFTwHXfnl0an0vyCjS0am5+B8dxDozc5ag=","LJc7lPt79J4pgFqY0hbGYXZi401EnFVix2vFUSovrB8=","QFcF13awbePeLAqSfFoNB6cYYU40wwY7aLYQXk/ss/A=","Wlc9EJxIODGOKavf7zXfPOrymuWwviwGUI8K6h9EBFQ=","aigt2QVYyMjXSLFAhuaEvBmqctsFVKFZEgtJYl/gPL8=","DALuGNF8WzgEgdYT34KFCzbRlV+wx5Ie1jrUsfJS+Jo=","wfZyGm8U+u587alYY91O5sOCVVMPqNA1wwst8/CLsWA=","frRFNtjphdfOKw0X1I1AZfU6yuCMZ+/bC9sHXg6L4DQ=","5DgE84Ns18cCD9zOiiPUuUP17nOmxMm4copkw2MHY9g=","ggacmAKa8hnTxehF0WUAbknaQk1Ks6c33x2g/zOVWgw=","I1YeaNL1rb0YNDCb7Xe9VPosJKP0fv3msScVnNsn4PA=","BPVDHS1+mcuIEsShBg19U6UCwIQKJwRZeXIECFA6zcw=","7smS/3DRbnKci59UoBg7xDf+NlAVGAZ2qtG4ILaAK/Q=","75SJNIAzyepGCUnfvUTVrZSddSfWaSxxXXmBiHewa8g=","YxHvS/I+2i1yJLilSU/ZKjyr5jc5ABhuU4Wh6H+oBUY=","7DBov9qK6s/uy8g0iL//5A97ZAELOSE6SjGMGVBK8dY=","JsXCAk0Ztn8YZFmyfUkuJYzAzlV70D+mefthbBvRjaY=","YHBP2MPkXLUeRIMQTdQ9LVxolKbn1onla0Uedgp1x+Y=","yE4z+aQ1n/7sLJRG8jM5xKLq+JlHg3GoN3ApPovnh/o=","fwU2Yg7p+8ACX6v3e7xiJGwDeYo0b+33hbxy+KMdMfA=","5gj0c1LVruisvtT8VA1J9IeWyRaTf0+dwuLnamseTl8=","HQec1yNY1oQtctj/ZfpEtDZZf3aT19Qdo4aaBPvaT+I=","FPtmqvOXlhE5gi/rc/sfWQpvLT7tPfHKJiSCEgmf3Hk=","EtTWrgka0wMLdqJ4oFojyDzjsuLoSyZpyzKzff+yFxU=","Ur4mOpiyDl1Zq/MH/SGszUlBP7jmOfupNVodMT6Mg2M=","LUTvZyrtuEoSL7PNqR2Iv2FbcbtI5lQrq5/97sMFIsU=","Bh+FIkHuIdFAcvCYOTlkKMxR15aDaaT9UlUsrCeuLUY="]
+    bs =
+        [ "xNXDvcL4JYFTwHXfnl0an0vyCjS0am5+B8dxDozc5ag="
+        , "LJc7lPt79J4pgFqY0hbGYXZi401EnFVix2vFUSovrB8="
+        , "QFcF13awbePeLAqSfFoNB6cYYU40wwY7aLYQXk/ss/A="
+        , "Wlc9EJxIODGOKavf7zXfPOrymuWwviwGUI8K6h9EBFQ="
+        , "aigt2QVYyMjXSLFAhuaEvBmqctsFVKFZEgtJYl/gPL8="
+        , "DALuGNF8WzgEgdYT34KFCzbRlV+wx5Ie1jrUsfJS+Jo="
+        , "wfZyGm8U+u587alYY91O5sOCVVMPqNA1wwst8/CLsWA="
+        , "frRFNtjphdfOKw0X1I1AZfU6yuCMZ+/bC9sHXg6L4DQ="
+        , "5DgE84Ns18cCD9zOiiPUuUP17nOmxMm4copkw2MHY9g="
+        , "ggacmAKa8hnTxehF0WUAbknaQk1Ks6c33x2g/zOVWgw="
+        , "I1YeaNL1rb0YNDCb7Xe9VPosJKP0fv3msScVnNsn4PA="
+        , "BPVDHS1+mcuIEsShBg19U6UCwIQKJwRZeXIECFA6zcw="
+        , "7smS/3DRbnKci59UoBg7xDf+NlAVGAZ2qtG4ILaAK/Q="
+        , "75SJNIAzyepGCUnfvUTVrZSddSfWaSxxXXmBiHewa8g="
+        , "YxHvS/I+2i1yJLilSU/ZKjyr5jc5ABhuU4Wh6H+oBUY="
+        , "7DBov9qK6s/uy8g0iL//5A97ZAELOSE6SjGMGVBK8dY="
+        , "JsXCAk0Ztn8YZFmyfUkuJYzAzlV70D+mefthbBvRjaY="
+        , "YHBP2MPkXLUeRIMQTdQ9LVxolKbn1onla0Uedgp1x+Y="
+        , "yE4z+aQ1n/7sLJRG8jM5xKLq+JlHg3GoN3ApPovnh/o="
+        , "fwU2Yg7p+8ACX6v3e7xiJGwDeYo0b+33hbxy+KMdMfA="
+        , "5gj0c1LVruisvtT8VA1J9IeWyRaTf0+dwuLnamseTl8="
+        , "HQec1yNY1oQtctj/ZfpEtDZZf3aT19Qdo4aaBPvaT+I="
+        , "FPtmqvOXlhE5gi/rc/sfWQpvLT7tPfHKJiSCEgmf3Hk="
+        , "EtTWrgka0wMLdqJ4oFojyDzjsuLoSyZpyzKzff+yFxU="
+        , "Ur4mOpiyDl1Zq/MH/SGszUlBP7jmOfupNVodMT6Mg2M="
+        , "LUTvZyrtuEoSL7PNqR2Iv2FbcbtI5lQrq5/97sMFIsU="
+        , "Bh+FIkHuIdFAcvCYOTlkKMxR15aDaaT9UlUsrCeuLUY="
+        ]
     is = map toDigest bs
