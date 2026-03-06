@@ -1,5 +1,5 @@
 Name:                   hash-tree
-Version:                0.0.1
+Version:                0.1.0
 Author:                 Kazu Yamamoto <kazu@iij.ad.jp>
 Maintainer:             Kazu Yamamoto <kazu@iij.ad.jp>
 License:                BSD3
@@ -20,8 +20,8 @@ Library
   Build-Depends:        base >= 4 && < 5
                       , bytestring
                       , containers
-                      , crypton
-                      , memory
+                      , crypton >= 1.1.0 && < 1.2
+                      , ram
 
 Test-Suite spec
   Type:                 exitcode-stdio-1.0
@@ -38,8 +38,9 @@ Test-Suite spec
                       , base64-bytestring
                       , containers
                       , crypton
+                      , hash-tree
                       , hspec
-                      , memory
+                      , ram
 
 Source-Repository head
   Type:                 git
